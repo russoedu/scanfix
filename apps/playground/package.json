@@ -113,6 +113,6 @@
     }
   },
   "dependencies": {
-    "@scanmate/image-fix": "0.0.1"
+    "@scanmate/image-fix": "*"
   }
 }
