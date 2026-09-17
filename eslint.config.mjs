@@ -64,4 +64,19 @@ import mnci from '@mnci/eslint-config'
 // enough on its own — neither needs a config file, and with none present they
 // format against their own defaults (semicolons, double quotes), which is the
 // inverse of Standard.
-export default mnci({ workspaceRoot: import.meta.dirname })
+export default [
+  ...mnci({ workspaceRoot: import.meta.dirname }),
+  {
+    name:  'local/image-kernels',
+    files: ['packages/align/src/**/*.ts'],
+    rules: {
+      // Every pixel loop in this package is a nested loop, and the cheapest way
+      // to skip a pixel is `continue`. The rule wants the inner loop extracted
+      // into its own function, which for a per-pixel body means a call per
+      // pixel - millions per page - in exchange for readability this code does
+      // not gain: `for y { for x { if (blank) continue } }` is the idiom, not a
+      // control-flow tangle. Scoped to this package only.
+      'unicorn/no-break-in-nested-loop': 'off',
+    },
+  },
+]

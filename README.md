@@ -1,12 +1,74 @@
-# New Nx Repository
+# scanfix
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+Tools for checking what came back. A document goes out as a PDF; a scan or a
+photograph of it comes back turned, rescaled and shadowed. These packages put
+the two back on the same coordinates so you can ask whether anything changed
+and whether anything was signed.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+An [Nx](https://nx.dev) monorepo, created with
+[`@mnci/cli`](https://www.npmjs.com/package/@mnci/cli).
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/docs/technologies/typescript/introduction?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+## Packages
 
-🚀 If you haven't connected to Nx Cloud yet, [complete your setup here](https://cloud.nx.app/get-started). Get faster builds with remote caching, distributed task execution, and self-healing CI. [See how your workspace can benefit](#nx-cloud).
+| package | what it is |
+| --- | --- |
+| [`@scanfix/align`](packages/align) | Aligns a scan onto the page it came from, and reports which known regions gained ink. Pure JavaScript - no native bindings, so it deploys to an Azure Function app unchanged. |
+
+| app | what it is |
+| --- | --- |
+| [`playground`](apps/playground) | A CLI for looking at what the library actually did: writes the aligned page and a diff overlay to disk. |
+
+## Getting started
+
+```sh
+npm install
+npm test              # every project
+npm run align:qa      # lint + test just the library
+npm run playground:start
+```
+
+`playground:start` with no arguments runs a built-in demo: a printed form is
+generated, signed and ticked, then scanned crooked, too big, out of focus,
+under a shadow and with sensor noise. It aligns that back onto the blank form
+and reports what it found.
+
+```text
+  alignment
+  ─────────────────────────────────────────────
+  method            features (coarse guess: deskew+phase)
+  confidence        ██████████ 0.965
+  ink overlap       █████████░ 0.873
+  rotation          -2.679°
+  scale             1.4489 x 1.4489
+  matches           61 inliers of 136 (45%)
+  reprojection      1.19 px
+  elapsed           1645 ms
+
+  regions
+  ─────────────────────────────────────────────
+  id                added  removed   filled
+  tick-1           16.67%    0.00%      yes
+  tick-2            0.00%    0.00%       no
+  signature         5.62%    0.00%      yes
+```
+
+Point it at real files to check your own pages:
+
+```sh
+npm run playground:start -- \
+  --original page1.png --scanned returned.jpg \
+  --region signature:76,905,420,78 \
+  --out ./out
+```
+
+It writes `aligned.png` and `diff.png`. In the diff, red is ink the scan added,
+blue is ink it lost, grey is ink both agree on. A correct alignment of a signed
+form is almost all grey with a red signature; a bad one is red and blue
+confetti along every stroke.
+
+---
+
+# Working in this Nx workspace
 
 ## Generate a library
 

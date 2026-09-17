@@ -5,6 +5,9 @@ dist
 tmp
 out-tsc
 
+# playground scratch output (aligned.png, diff.png, ...)
+playground-output
+
 # dependencies
 node_modules
 
@@ -25,6 +28,7 @@ node_modules
 !.vscode/extensions.json
 
 # misc
+.eslintcache
 /.sass-cache
 /connect.lock
 /coverage

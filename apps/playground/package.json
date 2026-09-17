@@ -39,7 +39,10 @@
               }
             }
           }
-        }
+        },
+        "dependsOn": [
+          "^build"
+        ]
       },
       "prune-lockfile": {
         "dependsOn": [
@@ -109,5 +112,7 @@
       }
     }
   },
-  "dependencies": {}
+  "dependencies": {
+    "@scanfix/align": "0.0.1"
+  }
 }

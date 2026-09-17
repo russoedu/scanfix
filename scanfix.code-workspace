@@ -69,6 +69,20 @@
     "version": "2.0.0",
     "tasks": [
       {
+        "label": "align: build",
+        "type": "npm",
+        "script": "align:build",
+        "problemMatcher": [],
+        "group": "build"
+      },
+      {
+        "label": "align: qa",
+        "type": "npm",
+        "script": "align:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
         "label": "playground: qa",
         "type": "npm",
         "script": "playground:qa",
