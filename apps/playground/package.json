@@ -1,5 +1,5 @@
 {
-  "name": "@scanfix/playground",
+  "name": "@scanmate/playground",
   "version": "0.0.1",
   "private": true,
   "nx": {
@@ -39,7 +39,10 @@
               }
             }
           }
-        }
+        },
+        "dependsOn": [
+          "^build"
+        ]
       },
       "prune-lockfile": {
         "dependsOn": [
@@ -83,15 +86,15 @@
           "build"
         ],
         "options": {
-          "buildTarget": "@scanfix/playground:build",
+          "buildTarget": "@scanmate/playground:build",
           "runBuildTargetDependencies": false
         },
         "configurations": {
           "development": {
-            "buildTarget": "@scanfix/playground:build:development"
+            "buildTarget": "@scanmate/playground:build:development"
           },
           "production": {
-            "buildTarget": "@scanfix/playground:build:production"
+            "buildTarget": "@scanmate/playground:build:production"
           }
         }
       },
@@ -109,5 +112,7 @@
       }
     }
   },
-  "dependencies": {}
+  "dependencies": {
+    "@scanmate/image-fix": "0.0.1"
+  }
 }

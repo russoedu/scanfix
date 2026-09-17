@@ -1,4 +1,10 @@
+const { join } = require('node:path')
+
 const { withNx } = require('@nx/rollup/with-nx')
+
+const { addDeclarationExtensions } = require('./tools/declaration-extensions.cjs')
+
+const DIST = join(__dirname, 'dist')
 
 module.exports = withNx(
   {
@@ -22,8 +28,16 @@ module.exports = withNx(
           .replaceAll(String.fromCodePoint(92), '/')
           .replace(/^(\.\.\/)+/, '../'),
     },
-    // Provide additional rollup configuration here. See: https://rollupjs.org/configuration-options
-    // e.g.
-    // output: { sourcemap: true },
+    // withNx appends these to its own plugin list, so this runs last. The same
+    // sweep also runs from `prepack` - see tools/declaration-extensions.cjs for
+    // why it needs both.
+    plugins: [
+      {
+        name: 'declaration-extensions',
+        closeBundle () {
+          addDeclarationExtensions(DIST)
+        },
+      },
+    ],
   },
 )

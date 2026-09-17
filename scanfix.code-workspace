@@ -69,6 +69,20 @@
     "version": "2.0.0",
     "tasks": [
       {
+        "label": "image-fix: build",
+        "type": "npm",
+        "script": "image-fix:build",
+        "problemMatcher": [],
+        "group": "build"
+      },
+      {
+        "label": "image-fix: qa",
+        "type": "npm",
+        "script": "image-fix:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
         "label": "playground: qa",
         "type": "npm",
         "script": "playground:qa",
