@@ -78,6 +78,7 @@
     },
     "changelog": {
       "workspaceChangelog": false,
+      "automaticFromRef": true,
       "projectChangelogs": {
         "createRelease": "github",
         "file": false
