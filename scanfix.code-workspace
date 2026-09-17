@@ -1,0 +1,143 @@
+{
+  "folders": [
+    {
+      "path": ".",
+      "name": "scanfix"
+    }
+  ],
+  "settings": {
+    "eslint.validate": [
+      "javascript",
+      "javascriptreact",
+      "typescript",
+      "typescriptreact",
+      "json",
+      "jsonc",
+      "yaml",
+      "markdown",
+      "css",
+      "html",
+      "toml"
+    ],
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit"
+    },
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+    "editor.formatOnSave": true,
+    "[javascript]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[javascriptreact]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[typescript]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[typescriptreact]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[json]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[jsonc]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[yaml]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[markdown]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[css]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[html]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[toml]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "dbaeumer.vscode-eslint",
+      "nrwl.angular-console",
+      "firsttris.vscode-jest-runner"
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "playground: qa",
+        "type": "npm",
+        "script": "playground:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "playground: build",
+        "type": "npm",
+        "script": "playground:build",
+        "problemMatcher": [],
+        "group": "build"
+      },
+      {
+        "label": "playground: start",
+        "type": "npm",
+        "script": "playground:start",
+        "problemMatcher": [],
+        "isBackground": true
+      }
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "type": "node-terminal",
+        "request": "launch",
+        "name": "mnci: build",
+        "command": "npm run build",
+        "cwd": "${workspaceFolder:scanfix}",
+        "presentation": {
+          "group": "mnci",
+          "order": 1
+        }
+      },
+      {
+        "type": "node-terminal",
+        "request": "launch",
+        "name": "mnci: test",
+        "command": "npm run test",
+        "cwd": "${workspaceFolder:scanfix}",
+        "presentation": {
+          "group": "mnci",
+          "order": 2
+        }
+      },
+      {
+        "type": "node-terminal",
+        "request": "launch",
+        "name": "mnci: lint",
+        "command": "npm run lint",
+        "cwd": "${workspaceFolder:scanfix}",
+        "presentation": {
+          "group": "mnci",
+          "order": 3
+        }
+      },
+      {
+        "type": "node-terminal",
+        "request": "launch",
+        "name": "mnci: typecheck",
+        "command": "npm run typecheck",
+        "cwd": "${workspaceFolder:scanfix}",
+        "presentation": {
+          "group": "mnci",
+          "order": 4
+        }
+      }
+    ]
+  }
+}
