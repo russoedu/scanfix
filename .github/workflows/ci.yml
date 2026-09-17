@@ -181,6 +181,38 @@ jobs:
       # which is why 'nx release' pushes the tag itself here — see
       # releaseConfig's remarks for why that is safe on this Nx version and
       # why every other provider combination keeps the explicit push step below.
+      # Prove npm will accept us BEFORE anything irreversible happens.
+      #
+      # 'nx release' versions, pushes, tags, pushes the tag and creates the
+      # GitHub Release, and only then publishes. So a missing or rejected token
+      # does not simply fail - it leaves a version tagged and released with
+      # nothing on the registry, and because the next run resolves the current
+      # version from the newest tag, that number is then skipped forever. That
+      # is exactly what happened to 0.0.2.
+      #
+      # 'npm whoami' is the cheapest thing that exercises the whole auth path:
+      # the secret reaching the step, .npmrc's ${NODE_AUTH_TOKEN} expanding,
+      # and the registry accepting the token. An empty secret renders blank in
+      # the step's env log rather than as ***, which is the tell.
+      - run: |
+          if [ -z "$(ls packages/*/package.json 2>/dev/null)" ]; then
+            echo "No npm packages to release - skipping."
+            exit 0
+          fi
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::NPM_TOKEN is empty or unset, so the publish would fail after tagging. Add it under Settings > Secrets and variables > ACTIONS (not the Dependabot or Codespaces tab, and not an Environment secret) as a repository secret named exactly NPM_TOKEN. Use an npm Automation token - a Publish token is refused by 2FA in CI."
+            exit 1
+          fi
+          if ! user=$(npm whoami --registry=https://registry.npmjs.org/ 2>&1); then
+            echo "::error::NPM_TOKEN is set but the registry rejected it: ${user}. Check that the token has not expired and grants publish rights on this scope."
+            exit 1
+          fi
+          echo "npm auth OK as ${user}"
+        name: Preflight — npm must accept the token before anything is tagged
+        if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - run: node -e "const fs=require('node:fs'),cp=require('node:child_process');const hasNpm=fs.globSync('packages/*/package.json').length>0;const hasPython=fs.globSync('python-packages/*/pyproject.toml').length>0;const hasCsharp=fs.globSync('packages/*/*.csproj').length>0;if(!hasNpm&&!hasPython&&!hasCsharp){console.log('Nothing to release - skipping.');process.exit(0)}const env={...process.env};process.exit(cp.spawnSync('npx nx release --yes',{stdio:'inherit',shell:true,env}).status ?? 1)"
         name: Release — version, tag, publish and GitHub Release (npm + Python + C#)
         if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
