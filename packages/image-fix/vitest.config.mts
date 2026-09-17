@@ -2,9 +2,9 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig(() => ({
   root:     import.meta.dirname,
-  cacheDir: '../../node_modules/.vite/packages/align',
+  cacheDir: '../../node_modules/.vite/packages/image-fix',
   test:     {
-    name:        '@scanfix/align',
+    name:        '@scanmate/image-fix',
     watch:       false,
     globals:     true,
     environment: 'node',

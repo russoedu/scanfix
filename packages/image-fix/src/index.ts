@@ -1,9 +1,9 @@
 /**
- * `@scanfix/align` - put a scanned page back on top of the page it came from.
+ * `@scanmate/image-fix` - put a scanned page back on top of the page it came from.
  *
  * ```ts
  * import { readFile } from 'node:fs/promises'
- * import { alignScan, compareRegions } from '@scanfix/align'
+ * import { alignScan, compareRegions } from '@scanmate/image-fix'
  *
  * const original = await readFile('contract.page1.png')  // rendered from the PDF
  * const scanned = await readFile('returned.jpg')         // what came back

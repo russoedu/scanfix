@@ -1,4 +1,4 @@
-# @scanfix/align
+# @scanmate/image-fix
 
 Put a scanned page back on top of the page it came from.
 
@@ -26,14 +26,14 @@ start, in production. Everything here runs the same everywhere.
 ## Install
 
 ```sh
-npm install @scanfix/align
+npm install @scanmate/image-fix
 ```
 
 ## Quick start
 
 ```ts
 import { readFile } from 'node:fs/promises'
-import { alignScan, compareRegions } from '@scanfix/align'
+import { alignScan, compareRegions } from '@scanmate/image-fix'
 
 const original = await readFile('contract.page1.png')   // rendered from the PDF
 const scanned = await readFile('returned.jpg')          // what came back
@@ -247,7 +247,7 @@ folder because the same trick smoke-tests a deployment without shipping sample
 scans:
 
 ```ts
-import { alignScan, createSyntheticDocument, simulateScan } from '@scanfix/align'
+import { alignScan, createSyntheticDocument, simulateScan } from '@scanmate/image-fix'
 
 const page = createSyntheticDocument()
 const scan = simulateScan(page.raster, { rotationDeg: -2.7, scale: 1.45, noise: 0.02 })

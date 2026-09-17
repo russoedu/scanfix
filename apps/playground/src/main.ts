@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 
-import type { AlignResult, Raster, Region, RegionReport, TransformModel } from '@scanfix/align'
+import type { AlignResult, Raster, Region, RegionReport, TransformModel } from '@scanmate/image-fix'
 import {
   alignScan,
   cloneRaster,
@@ -13,10 +13,10 @@ import {
   encodeImage,
   renderDiff,
   simulateScan,
-} from '@scanfix/align'
+} from '@scanmate/image-fix'
 
 /**
- * A harness for looking at what `@scanfix/align` actually did.
+ * A harness for looking at what `@scanmate/image-fix` actually did.
  *
  * Unit tests prove the matrix is right to a fraction of a pixel; they cannot
  * tell you that a scan of a real form came out legible. This writes the

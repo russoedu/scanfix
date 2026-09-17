@@ -103,7 +103,7 @@
   },
   "mnci": {
     "workspaceName": "scanfix",
-    "scope": "@scanfix",
+    "scope": "@scanmate",
     "registry": {
       "kind": "npm"
     },

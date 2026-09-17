@@ -12,7 +12,7 @@ An [Nx](https://nx.dev) monorepo, created with
 
 | package | what it is |
 | --- | --- |
-| [`@scanfix/align`](packages/align) | Aligns a scan onto the page it came from, and reports which known regions gained ink. Pure JavaScript - no native bindings, so it deploys to an Azure Function app unchanged. |
+| [`@scanmate/image-fix`](packages/image-fix) | Aligns a scan onto the page it came from, and reports which known regions gained ink. Pure JavaScript - no native bindings, so it deploys to an Azure Function app unchanged. |
 
 | app | what it is |
 | --- | --- |
@@ -23,7 +23,7 @@ An [Nx](https://nx.dev) monorepo, created with
 ```sh
 npm install
 npm test              # every project
-npm run align:qa      # lint + test just the library
+npm run image-fix:qa  # lint + test just the library
 npm run playground:start
 ```
 

@@ -4,7 +4,7 @@ export default defineConfig(() => ({
   root:     import.meta.dirname,
   cacheDir: '../../node_modules/.vite/apps/playground',
   test:     {
-    name:            '@scanfix/playground',
+    name:            '@scanmate/playground',
     watch:           false,
     globals:         true,
     environment:     'node',

@@ -69,16 +69,16 @@
     "version": "2.0.0",
     "tasks": [
       {
-        "label": "align: build",
+        "label": "image-fix: build",
         "type": "npm",
-        "script": "align:build",
+        "script": "image-fix:build",
         "problemMatcher": [],
         "group": "build"
       },
       {
-        "label": "align: qa",
+        "label": "image-fix: qa",
         "type": "npm",
-        "script": "align:qa",
+        "script": "image-fix:qa",
         "problemMatcher": [],
         "group": "qa"
       },

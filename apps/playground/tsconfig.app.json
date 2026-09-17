@@ -31,7 +31,7 @@
   ],
   "references": [
     {
-      "path": "../../packages/align/tsconfig.lib.json"
+      "path": "../../packages/image-fix/tsconfig.lib.json"
     }
   ]
 }
