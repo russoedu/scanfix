@@ -66,7 +66,7 @@ raw RGBA.
 
 > What follows is the reasoning. For the full algorithm - the formulae, every
 > constant, the coordinate-frame algebra and the measured error - see
-> [`documentation/fix.md`](../../documentation/fix.md).
+> [`documentation/fix.md`](https://github.com/russoedu/scanmate/blob/main/documentation/fix.md).
 
 ### 1. Ink, not greyscale
 
