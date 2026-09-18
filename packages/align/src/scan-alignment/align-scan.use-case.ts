@@ -1,11 +1,22 @@
-import { binarize, conjugateScale, correlation, decodeImage, decompose, downscaleGray, encodeImage, inkMap, intersectionOverUnion, invert, multiply, rebase, toGrayscale, translation, warpGray, warpRaster } from '@scanmate/ink'
-import type { GrayImage, ImageFormat, ImageInput, InkOptions, Interpolation, Matrix3, Raster, TransformModel, TransformSummary } from '@scanmate/ink'
+import { decodeImage, decompose, encodeImage, inkMap, invert, toGrayscale, warpRaster } from '@scanmate/ink'
+import type { ImageInput, Matrix3, TransformModel } from '@scanmate/ink'
+
 import { estimateCoarse } from '../coarse-estimation'
-import type { CoarseResult } from '../coarse-estimation'
-import { detectAndDescribe } from '../feature-matching'
-import { matchFeatures } from '../feature-matching'
-import { phaseCorrelate } from '../phase-correlation'
-import { ransac } from '../transform-fitting'
+import type { AlignOptions, AlignResult, ModelAttempt } from './align-result.contract'
+import { createReferee, toConfidence } from './alignment-referee.use-case'
+import type { Agreement } from './alignment-referee.use-case'
+import { fitResidual, prepareMatches } from './feature-refinement.use-case'
+import type { ResidualFit } from './feature-refinement.use-case'
+import { DEFAULT_MODELS, prefers, sweepOrder } from './model-selection.policy'
+
+/** The best fit so far in a sweep, with everything needed to return it without recomputing. */
+interface Contender {
+  model:      TransformModel
+  fit:        ResidualFit
+  agreement:  Agreement
+  confidence: number
+  attempt:    ModelAttempt
+}
 
 /**
  * Align a scan onto the page it was made from.
@@ -20,24 +31,37 @@ import { ransac } from '../transform-fitting'
  *    the OCR engine's own layout analysis is comparing different documents.
  * 2. *Was the box at (x, y) signed?* That is a question about a fixed
  *    rectangle, and a fixed rectangle only means something once both images
- *    agree on where (x, y) is. See `compareRegions`.
+ *    agree on where (x, y) is. See `@scanmate/diff`.
  *
  * ## The pipeline
  *
  * ```text
- *   decode ─► ink  ─► coarse guess ─► rough warp ─► features ─► RANSAC ─► warp
- *                     (scale/skew)                  (ORB)       (model)
+ *   decode ─► ink ─► coarse guess ─► rough warp ─► features ─┬─► RANSAC(similarity) ─► score ─┐
+ *                    (scale/skew)                   (ORB)     ├─► RANSAC(affine)     ─► score ─┼─► warp
+ *                                                             └─► RANSAC(homography) ─► score ─┘
+ *   └──────────────────── once, whatever the model ───────────┘   └──── per model, cheap ────┘
  * ```
  *
  * The coarse guess exists to make the feature stage possible at all: binary
  * descriptors compare fixed pixel offsets, so they only match between images
  * at comparable scale, and nothing in a JPEG tells you what dpi it was scanned
  * at. Once the scan has been resampled to roughly the right size, matching is
- * easy and RANSAC can throw away the inevitable wrong matches — a page of text
+ * easy and RANSAC can throw away the inevitable wrong matches - a page of text
  * is full of genuinely identical-looking corners.
  *
- * If the feature stage comes up short (a nearly blank form has few corners to
- * find), the coarse estimate is returned on its own, and `method` says so.
+ * ## Choosing the model
+ *
+ * With `model: 'all'`, the default, everything left of the fork is done once:
+ * decoding, ink separation, the coarse search, ORB on both pages and matching
+ * are nearly all of the cost and do not depend on the transform family. Only
+ * RANSAC and one scoring warp run per model, and neither is expensive - RANSAC
+ * touches no pixels. The sweep tries models cheapest first, stops as soon as one
+ * reaches `confidenceTarget`, and a more complex model must beat a simpler one by
+ * `modelPreferenceMargin` to replace it. The full-resolution warp and the
+ * encode happen once, for the winner.
+ *
+ * If no model finds a consensus (a nearly blank form has few corners to find),
+ * the coarse estimate is returned on its own, and `method` says so.
  *
  * ## Why it is asynchronous
  *
@@ -49,88 +73,6 @@ import { ransac } from '../transform-fitting'
  * the coarse search, ORB and RANSAC all run to completion on this thread - so
  * to align several pages at once, still put this in a worker thread.
  */
-
-export interface AlignOptions {
-  /**
-   * Transform family to fit.
-   *
-   * `similarity` (the default) covers a flatbed or sheet-fed scan: the page is
-   * flat, so it can only be turned, resized and moved. Use `affine` when one
-   * axis is stretched, and `homography` for photographs taken off-axis, where
-   * the far edge of the page is genuinely smaller than the near one.
-   */
-  model?:                TransformModel
-  /** Longest side used for feature detection. Bigger is more precise and quadratically slower. */
-  workingSize?:          number
-  /** Longest side used for the coarse guess. */
-  coarseSize?:           number
-  maxFeatures?:          number
-  /** Inlier radius for RANSAC, in working-resolution pixels. */
-  ransacThreshold?:      number
-  /** Fewer surviving correspondences than this and the feature stage is not trusted. */
-  minInliers?:           number
-  /** Largest per-page skew the coarse stage considers, in degrees. */
-  maxSkewDeg?:           number
-  /** Cap on how much bigger or smaller the scan may be than the original. */
-  maxScaleRatio?:        number
-  /** How far a correspondence may move, as a fraction of the page diagonal, after the coarse warp. */
-  maxDisplacementRatio?: number
-  /** Background/ink separation. The defaults suit printed pages on white. */
-  ink?:                  InkOptions
-  interpolation?:        Interpolation
-  /** RGBA fill where the scan does not cover the original's canvas. */
-  background?:           [number, number, number, number]
-  /** Encoding of `result.image`. `'none'` skips encoding, which is most of the cost on a big page. */
-  output?:               ImageFormat | 'none'
-  /** JPEG quality when `output` is `'jpeg'`. */
-  quality?:              number
-  /** Seeds RANSAC and the descriptor pattern, so the same input gives the same matrix. */
-  seed?:                 number
-}
-
-export interface AlignDiagnostics {
-  coarseScore:           number
-  coarseStrategy:        string
-  /** Each page's own skew, in degrees, as measured independently. */
-  skewDeg:               { original: number, scanned: number }
-  features:              { original: number, scanned: number }
-  matches:               number
-  inliers:               number
-  inlierRatio:           number
-  /** Mean RANSAC reprojection error over the inliers, in working-resolution pixels. */
-  reprojectionError:     number
-  /** Ink correlation after alignment, in `[-1, 1]`. */
-  correlation:           number
-  /** Ink mask overlap after alignment, in `[0, 1]`. */
-  intersectionOverUnion: number
-  /** Milliseconds spent, end to end. */
-  durationMs:            number
-}
-
-export interface AlignResult {
-  /** The scan resampled onto the original's canvas, same width and height as the original. */
-  raster:      Raster
-  /** `raster` encoded per `options.output`, or `null` when that was `'none'`. */
-  image:       Uint8Array | null
-  width:       number
-  height:      number
-  /** Maps original coordinates to scanned coordinates. */
-  matrix:      Matrix3
-  /** Maps scanned coordinates back to original coordinates. */
-  inverse:     Matrix3
-  transform:   TransformSummary
-  /**
-   * How much to trust the result, in `[0, 1]`.
-   *
-   * Derived from ink correlation after warping, so it measures agreement in the
-   * output rather than confidence in the process. Above ~0.6 is a solid match on
-   * a printed page; below ~0.3 treat the alignment as failed.
-   */
-  confidence:  number
-  method:      'features' | 'coarse'
-  diagnostics: AlignDiagnostics
-}
-
 export async function alignScan (
   original: ImageInput,
   scanned: ImageInput,
@@ -138,7 +80,10 @@ export async function alignScan (
 ): Promise<AlignResult> {
   const startedAt = Date.now()
   const {
-    model = 'similarity',
+    model = 'all',
+    confidenceTarget = 0.9,
+    models = DEFAULT_MODELS,
+    modelPreferenceMargin = 0.02,
     workingSize = 1400,
     coarseSize = 512,
     maxFeatures = 1200,
@@ -155,36 +100,81 @@ export async function alignScan (
     seed = 0x5CA7F1,
   } = options
 
+  const candidates = model === 'all' ? sweepOrder(models) : [model]
+
   const originalRaster = await decodeImage(original)
   const scannedRaster = await decodeImage(scanned)
 
   const originalInk = inkMap(toGrayscale(originalRaster), ink)
   const scannedInk = inkMap(toGrayscale(scannedRaster), ink)
 
+  // --- Model-independent, and nearly all of the cost: done once. ---
+
   const coarse = estimateCoarse(originalInk, scannedInk, {
     workingSize: coarseSize,
     maxSkewDeg,
     maxScaleRatio,
   })
-
-  const refined = refineWithFeatures(originalInk, scannedInk, coarse, {
-    model,
+  const prepared = prepareMatches(originalInk, scannedInk, coarse, {
     workingSize,
     maxFeatures,
-    ransacThreshold,
-    minInliers,
     maxDisplacementRatio,
     seed,
   })
+  const judge = createReferee(originalInk, scannedInk, workingSize)
 
-  const matrix = refined.matrix
+  // --- Per model: RANSAC, one scoring warp. ---
+
+  const attempts: ModelAttempt[] = []
+  let best: Contender | null = null
+
+  for (const candidate of candidates) {
+    const fit = fitResidual(prepared, coarse, candidate, { ransacThreshold, minInliers, seed })
+    if (fit === null) {
+      attempts.push({
+        model:             candidate,
+        confidence:        null,
+        inliers:           0,
+        inlierRatio:       0,
+        reprojectionError: NaN,
+        rejected:          true,
+        selected:          false,
+      })
+      continue
+    }
+
+    const agreement = judge(fit.matrix)
+    const confidence = toConfidence(agreement)
+    const attempt: ModelAttempt = {
+      model:             candidate,
+      confidence,
+      inliers:           fit.inliers,
+      inlierRatio:       fit.inlierRatio,
+      reprojectionError: fit.reprojectionError,
+      rejected:          false,
+      selected:          false,
+    }
+    attempts.push(attempt)
+
+    if (prefers({ model: candidate, confidence }, best, modelPreferenceMargin))
+      best = { model: candidate, fit, agreement, confidence, attempt }
+
+    if (best !== null && best.confidence >= confidenceTarget) break
+  }
+
+  // --- Once, for the winner: the full-resolution warp and the encode. ---
+
+  const matrix: Matrix3 = best === null ? coarse.matrix : best.fit.matrix
+  const agreement = best === null ? judge(matrix) : best.agreement
+  // The coarse estimate is a similarity; that is what it reports when it stands alone.
+  const selectedModel: TransformModel = best === null ? 'similarity' : best.model
+  if (best !== null) best.attempt.selected = true
+
   const raster = warpRaster(scannedRaster, matrix, originalRaster.width, originalRaster.height, {
     background,
     interpolation,
     prefilter: true,
   })
-
-  const agreement = measure(originalInk, scannedInk, matrix, workingSize)
 
   return {
     raster,
@@ -193,9 +183,9 @@ export async function alignScan (
     height:      raster.height,
     matrix,
     inverse:     invert(matrix),
-    transform:   decompose(matrix, model),
-    confidence:  Math.max(0, Math.min(1, agreement.correlation)),
-    method:      refined.method,
+    transform:   decompose(matrix, selectedModel),
+    confidence:  toConfidence(agreement),
+    method:      best === null ? 'coarse' : 'features',
     diagnostics: {
       coarseScore:    coarse.score,
       coarseStrategy: coarse.strategy,
@@ -203,153 +193,16 @@ export async function alignScan (
         original: (coarse.skew.original * 180) / Math.PI,
         scanned:  (coarse.skew.scanned * 180) / Math.PI,
       },
-      features:              refined.features,
-      matches:               refined.matches,
-      inliers:               refined.inliers,
-      inlierRatio:           refined.inlierRatio,
-      reprojectionError:     refined.reprojectionError,
+      features:              prepared.features,
+      matches:               prepared.matches.length,
+      inliers:               best?.fit.inliers ?? 0,
+      inlierRatio:           best?.fit.inlierRatio ?? 0,
+      reprojectionError:     best?.fit.reprojectionError ?? NaN,
       correlation:           agreement.correlation,
       intersectionOverUnion: agreement.iou,
+      selectedModel,
+      attempts,
       durationMs:            Date.now() - startedAt,
     },
   }
-}
-
-interface RefineOptions {
-  model:                TransformModel
-  workingSize:          number
-  maxFeatures:          number
-  ransacThreshold:      number
-  minInliers:           number
-  maxDisplacementRatio: number
-  seed:                 number
-}
-
-interface RefineResult {
-  matrix:            Matrix3
-  method:            'features' | 'coarse'
-  features:          { original: number, scanned: number }
-  matches:           number
-  inliers:           number
-  inlierRatio:       number
-  reprojectionError: number
-}
-
-/**
- * Match features between the original and the *coarsely corrected* scan.
- *
- * Doing it after the coarse warp rather than before is what makes the whole
- * thing work. The two images now sit at the same scale and nearly the same
- * angle, so a fixed-offset binary descriptor describes the same thing on both,
- * and a correspondence that jumps across the page can be rejected on sight.
- * What RANSAC recovers is only the small residual, which is then composed onto
- * the coarse transform.
- */
-function refineWithFeatures (
-  originalInk: GrayImage,
-  scannedInk: GrayImage,
-  coarse: CoarseResult,
-  options: RefineOptions,
-): RefineResult {
-  const fallback: RefineResult = {
-    matrix:            coarse.matrix,
-    method:            'coarse',
-    features:          { original: 0, scanned: 0 },
-    matches:           0,
-    inliers:           0,
-    inlierRatio:       0,
-    reprojectionError: NaN,
-  }
-
-  const original = downscaleGray(originalInk, options.workingSize)
-  const scanned = downscaleGray(scannedInk, options.workingSize)
-
-  // The coarse matrix speaks full-resolution pixels; restate it between the two
-  // working frames, which were shrunk by different amounts.
-  const coarseWork = rebase(coarse.matrix, 1 / original.scale, 1 / scanned.scale)
-  const rough = warpGray(scanned.image, coarseWork, original.image.width, original.image.height, 0)
-
-  const originalFeatures = detectAndDescribe(original.image, { maxFeatures: options.maxFeatures, seed: options.seed })
-  const scannedFeatures = detectAndDescribe(rough, { maxFeatures: options.maxFeatures, seed: options.seed })
-  const counts = { original: originalFeatures.keypoints.length, scanned: scannedFeatures.keypoints.length }
-
-  const diagonal = Math.hypot(original.image.width, original.image.height)
-  const matches = matchFeatures(originalFeatures, scannedFeatures, {
-    maxDisplacement: diagonal * options.maxDisplacementRatio,
-  })
-
-  const consensus = ransac(matches, {
-    model:      options.model,
-    threshold:  options.ransacThreshold,
-    minInliers: options.minInliers,
-    seed:       options.seed,
-  })
-
-  if (consensus === null) return { ...fallback, features: counts, matches: matches.length }
-
-  // RANSAC's matrix maps the original's working frame onto the rough warp,
-  // which lives in that same frame. Scale it back up, then compose: original ->
-  // rough -> scan.
-  const residual = conjugateScale(consensus.matrix, original.scale)
-
-  return {
-    matrix:            multiply(coarse.matrix, residual),
-    method:            'features',
-    features:          counts,
-    matches:           matches.length,
-    inliers:           consensus.inliers.length,
-    inlierRatio:       consensus.inlierRatio,
-    reprojectionError: consensus.error,
-  }
-}
-
-/** Ink correlation and mask overlap after warping, computed at a modest resolution. */
-function measure (
-  originalInk: GrayImage,
-  scannedInk: GrayImage,
-  matrix: Matrix3,
-  workingSize: number,
-): { correlation: number, iou: number } {
-  const original = downscaleGray(originalInk, Math.min(workingSize, 800))
-  const scanned = downscaleGray(scannedInk, Math.min(workingSize, 800))
-  const work = rebase(matrix, 1 / original.scale, 1 / scanned.scale)
-  const warped = warpGray(scanned.image, work, original.image.width, original.image.height, 0)
-
-  return {
-    correlation: correlation(original.image, warped),
-    iou:         intersectionOverUnion(binarize(original.image), binarize(warped)),
-  }
-}
-
-/**
- * Nudge an existing transform by whatever residual translation is still measurable.
- *
- * Exposed because it is occasionally useful on its own: if you already know the
- * transform from a previous page of the same batch, this re-seats it on the
- * current page for a fraction of the cost of a full alignment.
- */
-export function polishTranslation (
-  originalInk: GrayImage,
-  scannedInk: GrayImage,
-  matrix: Matrix3,
-  workingSize = 512,
-): Matrix3 {
-  const original = downscaleGray(originalInk, workingSize)
-  const scanned = downscaleGray(scannedInk, workingSize)
-  const work = rebase(matrix, 1 / original.scale, 1 / scanned.scale)
-  const warped = warpGray(scanned.image, work, original.image.width, original.image.height, 0)
-
-  const shift = phaseCorrelate(original.image, warped)
-  if (!Number.isFinite(shift.dx) || !Number.isFinite(shift.dy)) return matrix
-
-  const corrected = multiply(work, translation(shift.dx, shift.dy))
-  const candidate = rebase(corrected, original.scale, scanned.scale)
-
-  const before = correlation(original.image, warped)
-  const after = correlation(
-    original.image,
-    warpGray(scanned.image, corrected, original.image.width, original.image.height, 0),
-  )
-
-  return after > before ? candidate : matrix
 }

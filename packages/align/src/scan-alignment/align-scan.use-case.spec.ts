@@ -152,6 +152,9 @@ describe('alignScan', () => {
     const result = await alignScan(blank, scan.raster, { output: 'none' })
 
     expect(result.method).toBe('coarse')
+    expect(result.diagnostics.attempts.map(a => a.model)).toEqual(['similarity', 'affine', 'homography'])
+    expect(result.diagnostics.attempts.every(a => a.rejected && !a.selected)).toBe(true)
+    expect(result.diagnostics.selectedModel).toBe('similarity')
     expect(result.raster.width).toBe(300)
   }, 30_000)
 
@@ -184,6 +187,102 @@ describe('alignScan', () => {
     expect(cornerError(result.matrix, scan.matrix, page.raster)).toBeLessThan(4)
     expect(result.confidence).toBeGreaterThan(0.6)
   }, 120_000)
+})
+
+describe('alignScan with model: all', () => {
+  /** A flatbed scan: turned, resized, moved, and nothing else - its ground truth is a similarity. */
+  const FLATBED = simulateScan(PAGE.raster, { rotationDeg: 2.2, scale: 1.3, translateX: 20, noise: 0.01, seed: 4 })
+
+  /** One axis squashed: a distortion no similarity can express. */
+  const SQUASHED = (() => {
+    const scan = simulateScan(PAGE.raster, { scale: 1.2, rotationDeg: 1.1, canvas: { width: 640, height: 820 } })
+
+    return { raster: squash(scan.raster, 0.92), matrix: multiply([0.92, 0, 0, 0, 1, 0, 0, 0, 1], scan.matrix) }
+  })()
+
+  it('is the default, and stops at the first model that reaches the target', async () => {
+    const result = await alignScan(PAGE.raster, FLATBED.raster, { output: 'none' })
+
+    expect(result.diagnostics.selectedModel).toBe('similarity')
+    expect(result.diagnostics.attempts.map(a => a.model)).toEqual(['similarity'])
+    expect(result.confidence).toBeGreaterThanOrEqual(0.9)
+    expect(cornerError(result.matrix, FLATBED.matrix)).toBeLessThan(3)
+  }, 45_000)
+
+  it('moves past a model that cannot express the distortion', async () => {
+    const result = await alignScan(PAGE.raster, SQUASHED.raster, { output: 'none' })
+    const [similarity, affine] = result.diagnostics.attempts
+
+    expect(similarity.confidence).toBeLessThan(0.9)
+    expect(result.diagnostics.selectedModel).toBe('affine')
+    expect(affine.selected).toBe(true)
+    // Affine reached the target, so homography was never tried.
+    expect(result.diagnostics.attempts).toHaveLength(2)
+    expect(cornerError(result.matrix, SQUASHED.matrix, PAGE.raster)).toBeLessThan(3)
+  }, 45_000)
+
+  it('keeps the simpler model when a more complex one only wins by fitting noise', async () => {
+    // With the target out of reach every model is scored. On this flat page the
+    // affine fit genuinely scores higher than the similarity - it bends to follow
+    // the noise - but by less than the margin, so the similarity stands. A plain
+    // highest-confidence rule would return the affine here.
+    const result = await alignScan(PAGE.raster, FLATBED.raster, { output: 'none', confidenceTarget: 2 })
+    const score = (model: string) => result.diagnostics.attempts.find(a => a.model === model)?.confidence ?? 0
+
+    expect(score('affine')).toBeGreaterThan(score('similarity'))
+    expect(score('affine') - score('similarity')).toBeLessThan(0.02)
+    expect(result.diagnostics.selectedModel).toBe('similarity')
+    expect(cornerError(result.matrix, FLATBED.matrix)).toBeLessThan(3)
+  }, 45_000)
+
+  it('with no margin, lets the highest confidence win', async () => {
+    const result = await alignScan(PAGE.raster, FLATBED.raster, {
+      output: 'none', confidenceTarget: 2, modelPreferenceMargin: 0,
+    })
+
+    expect(result.diagnostics.selectedModel).toBe('affine')
+  }, 45_000)
+
+  it('scores every model exactly as a single-model alignment would', async () => {
+    // The sweep shares one feature pass across models; that must not change a
+    // single number, only how often the expensive part runs.
+    const sweep = await alignScan(PAGE.raster, SQUASHED.raster, { output: 'none', confidenceTarget: 2 })
+    for (const model of ['similarity', 'affine', 'homography'] as const) {
+      const single = await alignScan(PAGE.raster, SQUASHED.raster, { output: 'none', model })
+      const attempt = sweep.diagnostics.attempts.find(a => a.model === model)
+      expect({ model, confidence: attempt?.confidence }).toEqual({ model, confidence: single.confidence })
+    }
+  }, 120_000)
+
+  it('tries exactly the models it is given, in the order given', async () => {
+    const result = await alignScan(PAGE.raster, FLATBED.raster, {
+      output: 'none', confidenceTarget: 2, models: ['homography', 'similarity'],
+    })
+
+    expect(result.diagnostics.attempts.map(a => a.model)).toEqual(['homography', 'similarity'])
+    // Order changes nothing about the answer: the simpler model within the margin wins.
+    expect(result.diagnostics.selectedModel).toBe('similarity')
+  }, 45_000)
+
+  it('fits only the named model when one is given', async () => {
+    const result = await alignScan(PAGE.raster, FLATBED.raster, { output: 'none', model: 'homography' })
+
+    expect(result.diagnostics.attempts.map(a => a.model)).toEqual(['homography'])
+    expect(result.diagnostics.selectedModel).toBe('homography')
+  }, 45_000)
+
+  it('marks exactly one attempt as selected, and it is the one returned', async () => {
+    const result = await alignScan(PAGE.raster, SQUASHED.raster, { output: 'none', confidenceTarget: 2 })
+    const selected = result.diagnostics.attempts.filter(a => a.selected)
+
+    expect(selected).toHaveLength(1)
+    expect(selected[0].model).toBe(result.diagnostics.selectedModel)
+    expect(selected[0].confidence).toBe(result.confidence)
+  }, 45_000)
+
+  it('refuses an empty model list rather than fitting nothing', async () => {
+    await expect(alignScan(PAGE.raster, FLATBED.raster, { models: [] })).rejects.toThrow(/at least one/)
+  })
 })
 
 /** Horizontal-only rescale, to build a distortion no similarity can express. */

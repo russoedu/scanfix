@@ -74,6 +74,10 @@ function report (result: AlignResult, regions: RegionReport[], out: string, elap
   console.log('  alignment')
   console.log('  ─────────────────────────────────────────────')
   console.log(`  method            ${result.method} (coarse guess: ${diagnostics.coarseStrategy})`)
+  const tried = diagnostics.attempts
+    .map(a => `${a.model} ${a.confidence === null ? 'rejected' : a.confidence.toFixed(3)}`)
+    .join(', ')
+  console.log(`  model             ${diagnostics.selectedModel} (tried ${tried})`)
   console.log(`  confidence        ${bar(result.confidence)} ${result.confidence.toFixed(3)}`)
   console.log(`  ink overlap       ${bar(diagnostics.intersectionOverUnion)} ${diagnostics.intersectionOverUnion.toFixed(3)}`)
   console.log(`  rotation          ${transform.rotationDeg.toFixed(3)}°`)

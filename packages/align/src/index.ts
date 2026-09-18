@@ -6,15 +6,19 @@
  * import { alignScan } from '@scanmate/align'
  *
  * const result = await alignScan(await decodeImage('page1.png'), await decodeImage('returned.jpg'))
- * console.log(result.confidence, result.transform.rotationDeg)
+ * console.log(result.confidence, result.diagnostics.selectedModel, result.transform.rotationDeg)
  * ```
  *
  * `result.raster` sits on the original's canvas, at the original's width and
  * height, so every coordinate known from the PDF still means what it meant.
  */
 
-export { alignScan, polishTranslation } from './scan-alignment'
-export type { AlignDiagnostics, AlignOptions, AlignResult } from './scan-alignment'
+export { alignPages, alignScan, polishTranslation } from './scan-alignment'
+export type { AlignDiagnostics, AlignOptions, AlignPagesOptions, AlignResult, ModelAttempt } from './scan-alignment'
+
+/** The model-selection rule `model: 'all'` applies, for callers running their own sweep. */
+export { DEFAULT_MODELS, prefers } from './scan-alignment'
+export type { ScoredModel } from './scan-alignment'
 
 // --- Building blocks, for pipelines that need to stop part way ---
 

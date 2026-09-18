@@ -84,6 +84,10 @@ export { fft1d, fft2d, isPowerOfTwo, nextPowerOfTwo } from './frequency-analysis
 /** Seeded PRNG behind RANSAC sampling and the BRIEF pattern. Consumed by `@scanmate/align`. */
 export { createRandom, gaussian } from './deterministic-sampling'
 
+// --- Pipeline contracts: what the stages hand one another ---
+
+export type { AlignedImage, AlignedPage, PageImage, PipelineStage, ProgressCallback, ScanPage, StageEvent } from './pipeline-contract'
+
 // --- Test fixtures, also useful for smoke-testing a deployment ---
 
 export { createSyntheticDocument, drawSignature, drawTick, simulateScan } from './synthetic-document'
