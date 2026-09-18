@@ -18,6 +18,14 @@ An [Nx](https://nx.dev) monorepo, created with
 | --- | --- |
 | [`playground`](apps/playground) | A CLI for looking at what the library actually did: writes the aligned page and a diff overlay to disk. |
 
+## Documentation
+
+[`documentation/fix.md`](documentation/fix.md) explains the whole algorithm -
+how the scan is registered onto the original, and how the library then decides
+whether a known rectangle gained ink. Written to be reimplementable: every
+constant quoted is the actual default, and each stage names the file that
+implements it.
+
 ## Getting started
 
 ```sh

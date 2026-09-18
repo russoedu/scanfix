@@ -64,6 +64,10 @@ raw RGBA.
                    scale + skew                  + matching      + model
 ```
 
+> What follows is the reasoning. For the full algorithm - the formulae, every
+> constant, the coordinate-frame algebra and the measured error - see
+> [`documentation/fix.md`](../../documentation/fix.md).
+
 ### 1. Ink, not greyscale
 
 A scan differs from its source in ways that have nothing to do with geometry:
