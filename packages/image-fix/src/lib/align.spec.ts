@@ -1,10 +1,6 @@
+import { applyPoint, createRaster, createSyntheticDocument, encodeImage, IDENTITY, inkMap, invert, multiply, normalize, simulateScan, toGrayscale } from '@scanmate/ink'
+import type { Matrix3, Raster } from '@scanmate/ink'
 import { alignScan } from './align'
-import { encodeImage } from './image/codec'
-import { inkMap, toGrayscale } from './image/gray'
-import { applyPoint, IDENTITY, invert, multiply, normalize } from './math/matrix'
-import { createSyntheticDocument, simulateScan } from './testing/synthetic'
-import type { Matrix3, Raster } from './types'
-import { createRaster } from './image/raster'
 
 const PAGE = createSyntheticDocument({ width: 480, height: 620 })
 

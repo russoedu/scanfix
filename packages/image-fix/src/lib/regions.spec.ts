@@ -1,8 +1,7 @@
+import { cloneRaster, createRaster, createSyntheticDocument, drawSignature, drawTick, simulateScan } from '@scanmate/ink'
+import type { Raster } from '@scanmate/ink'
 import { alignScan } from './align'
-import { cloneRaster, createRaster } from './image/raster'
 import { compareRegions, diffDocument, renderDiff } from './regions'
-import { createSyntheticDocument, drawSignature, drawTick, simulateScan } from './testing/synthetic'
-import type { Raster } from './types'
 import type { Region } from './regions'
 
 const BLANK = createSyntheticDocument({ width: 520, height: 680, seed: 3 })

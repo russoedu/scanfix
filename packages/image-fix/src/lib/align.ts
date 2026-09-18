@@ -1,19 +1,11 @@
-import { correlation, intersectionOverUnion } from './analysis/score'
-import type { ImageFormat } from './image/codec'
-import { decodeImage, encodeImage } from './image/codec'
-import type { InkOptions } from './image/gray'
-import { binarize, inkMap, toGrayscale } from './image/gray'
-import { downscaleGray } from './image/resize'
-import type { Interpolation } from './image/warp'
-import { warpGray, warpRaster } from './image/warp'
-import { conjugateScale, decompose, invert, multiply, rebase, translation } from './math/matrix'
-import type { CoarseResult } from './estimate/coarse'
+import { binarize, conjugateScale, correlation, decodeImage, decompose, downscaleGray, encodeImage, inkMap, intersectionOverUnion, invert, multiply, rebase, toGrayscale, translation, warpGray, warpRaster } from '@scanmate/ink'
+import type { GrayImage, ImageFormat, ImageInput, InkOptions, Interpolation, Matrix3, Raster, TransformModel, TransformSummary } from '@scanmate/ink'
 import { estimateCoarse } from './estimate/coarse'
+import type { CoarseResult } from './estimate/coarse'
 import { detectAndDescribe } from './estimate/features'
 import { matchFeatures } from './estimate/match'
 import { phaseCorrelate } from './estimate/phaseCorrelation'
 import { ransac } from './estimate/ransac'
-import type { GrayImage, ImageInput, Matrix3, Raster, TransformModel, TransformSummary } from './types'
 
 /**
  * Align a scan onto the page it was made from.

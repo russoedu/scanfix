@@ -1,6 +1,5 @@
-import { applyPoint, similarity } from '../math/matrix'
-import { createRandom } from '../math/random'
-import type { Matrix3, Point } from '../types'
+import { applyPoint, createRandom, similarity } from '@scanmate/ink'
+import type { Matrix3, Point } from '@scanmate/ink'
 import type { Correspondence } from './models'
 import { findInliers, ransac } from './ransac'
 

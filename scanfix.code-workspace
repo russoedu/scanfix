@@ -102,6 +102,20 @@
         "script": "playground:start",
         "problemMatcher": [],
         "isBackground": true
+      },
+      {
+        "label": "ink: qa",
+        "type": "npm",
+        "script": "ink:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "ink: build",
+        "type": "npm",
+        "script": "ink:build",
+        "problemMatcher": [],
+        "group": "build"
       }
     ]
   },

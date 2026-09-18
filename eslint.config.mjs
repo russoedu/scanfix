@@ -68,15 +68,21 @@ export default [
   ...mnci({ workspaceRoot: import.meta.dirname }),
   {
     name:  'local/image-kernels',
-    files: ['packages/image-fix/src/**/*.ts'],
+    files: ['packages/{ink,image-fix}/src/**/*.ts'],
     rules: {
       // Every pixel loop in this package is a nested loop, and the cheapest way
       // to skip a pixel is `continue`. The rule wants the inner loop extracted
       // into its own function, which for a per-pixel body means a call per
       // pixel - millions per page - in exchange for readability this code does
       // not gain: `for y { for x { if (blank) continue } }` is the idiom, not a
-      // control-flow tangle. Scoped to this package only.
+      // control-flow tangle. Scoped to the packages that own pixel kernels.
       'unicorn/no-break-in-nested-loop': 'off',
     },
+  },
+  {
+    // Vitest writes these beside a config while it resolves it, then deletes
+    // them. Linting one is a race, and it is never source.
+    name:    'local/vitest-scratch-files',
+    ignores: ['**/vitest.config.*.timestamp*'],
   },
 ]

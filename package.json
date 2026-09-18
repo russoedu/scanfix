@@ -17,7 +17,9 @@
     "image-fix:build": "nx run image-fix:build",
     "playground:qa": "nx run playground:lint && nx run playground:test",
     "playground:build": "nx run playground:build",
-    "playground:start": "nx run playground:serve"
+    "playground:start": "nx run playground:serve",
+    "ink:qa": "nx run ink:lint && nx run ink:test",
+    "ink:build": "nx run ink:build"
   },
   "private": true,
   "devDependencies": {

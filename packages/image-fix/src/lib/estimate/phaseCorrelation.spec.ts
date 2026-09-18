@@ -1,5 +1,5 @@
-import { createGray } from '../image/raster'
-import type { GrayImage } from '../types'
+import { createGray } from '@scanmate/ink'
+import type { GrayImage } from '@scanmate/ink'
 import { phaseCorrelate } from './phaseCorrelation'
 
 /** A few smooth blobs, so the correlation surface has one unambiguous peak. */

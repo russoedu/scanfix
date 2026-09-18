@@ -1,6 +1,5 @@
-import { smallestEigenvector, solve } from '../math/linalg'
-import { invert, multiply } from '../math/matrix'
-import type { Matrix3, PointMatch, TransformModel } from '../types'
+import { invert, multiply, smallestEigenvector, solve } from '@scanmate/ink'
+import type { Matrix3, PointMatch, TransformModel } from '@scanmate/ink'
 
 /**
  * Fitting a transform to a set of correspondences.

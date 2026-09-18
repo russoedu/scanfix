@@ -50,10 +50,6 @@
     "prepack": "node tools/declaration-extensions.cjs"
   },
   "dependencies": {
-    "jpeg-js": "^0.4.4",
-    "pngjs": "^7.0.0"
-  },
-  "devDependencies": {
-    "@types/pngjs": "^6.0.5"
+    "@scanmate/ink": "^0.0.1"
   }
 }

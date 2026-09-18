@@ -1,5 +1,5 @@
-import { fft2d, nextPowerOfTwo } from '../math/fft'
-import type { GrayImage } from '../types'
+import { fft2d, nextPowerOfTwo } from '@scanmate/ink'
+import type { GrayImage } from '@scanmate/ink'
 
 /**
  * Global translation from the Fourier shift theorem.

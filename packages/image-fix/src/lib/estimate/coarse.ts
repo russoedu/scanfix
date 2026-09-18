@@ -1,10 +1,5 @@
-import { contentExtent, estimateSkew } from '../analysis/content'
-import type { ContentExtent } from '../analysis/content'
-import { correlation } from '../analysis/score'
-import { downscaleGray } from '../image/resize'
-import { warpGray } from '../image/warp'
-import { isPlausible, multiply, rebase, similarity, translation } from '../math/matrix'
-import type { GrayImage, Matrix3 } from '../types'
+import { contentExtent, correlation, downscaleGray, estimateSkew, isPlausible, multiply, rebase, similarity, translation, warpGray } from '@scanmate/ink'
+import type { ContentExtent, GrayImage, Matrix3 } from '@scanmate/ink'
 import { phaseCorrelate } from './phaseCorrelation'
 
 /**

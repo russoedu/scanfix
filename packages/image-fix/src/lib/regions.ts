@@ -1,7 +1,5 @@
-import { decodeImage } from './image/codec'
-import type { InkOptions } from './image/gray'
-import { binarize, coverage, dilate, inkMap, toGrayscale } from './image/gray'
-import type { BinaryImage, ImageInput, Raster, Rect } from './types'
+import { binarize, coverage, decodeImage, dilate, inkMap, toGrayscale } from '@scanmate/ink'
+import type { BinaryImage, ImageInput, InkOptions, Raster, Rect } from '@scanmate/ink'
 
 /**
  * What changed, and where.
