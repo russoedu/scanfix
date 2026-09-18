@@ -38,25 +38,25 @@ interface Options {
   json:      boolean
 }
 
-function main (): void {
+async function main (): Promise<void> {
   const options = parseArguments(process.argv.slice(2))
   mkdirSync(options.out, { recursive: true })
 
   const inputs = options.original !== undefined && options.scanned !== undefined
-    ? loadPair(options.original, options.scanned)
-    : buildDemo(options.out)
+    ? await loadPair(options.original, options.scanned)
+    : await buildDemo(options.out)
 
   const regions = options.regions.length > 0 ? options.regions : inputs.regions
 
   const started = Date.now()
-  const result = alignScan(inputs.original, inputs.scanned, {
+  const result = await alignScan(inputs.original, inputs.scanned, {
     model:  options.model,
     output: 'none',
   })
-  const reports = compareRegions(inputs.original, result.raster, regions)
+  const reports = await compareRegions(inputs.original, result.raster, regions)
 
-  write(options.out, 'aligned.png', result.raster)
-  write(options.out, 'diff.png', renderDiff(inputs.original, result.raster))
+  await write(options.out, 'aligned.png', result.raster)
+  await write(options.out, 'diff.png', await renderDiff(inputs.original, result.raster))
 
   if (options.json) {
     console.log(JSON.stringify({ result: summarise(result), regions: reports }, null, 2))
@@ -126,7 +126,7 @@ function summarise (result: AlignResult): Record<string, unknown> {
 }
 
 /** A printed form, a filled-in copy of it, and a bad scan of that copy. */
-function buildDemo (out: string): { original: Raster, scanned: Raster, regions: Region[] } {
+async function buildDemo (out: string): Promise<{ original: Raster, scanned: Raster, regions: Region[] }> {
   const page = createSyntheticDocument({ width: 850, height: 1100 })
 
   const filled = cloneRaster(page.raster)
@@ -145,8 +145,8 @@ function buildDemo (out: string): { original: Raster, scanned: Raster, regions: 
     seed:         17,
   })
 
-  write(out, 'original.png', page.raster)
-  write(out, 'scanned.png', scan.raster)
+  await write(out, 'original.png', page.raster)
+  await write(out, 'scanned.png', scan.raster)
 
   console.log('')
   console.log('  no --original/--scanned given, so running the built-in demo:')
@@ -160,22 +160,22 @@ function buildDemo (out: string): { original: Raster, scanned: Raster, regions: 
   }
 }
 
-function loadPair (original: string, scanned: string): { original: Raster, scanned: Raster, regions: Region[] } {
+async function loadPair (original: string, scanned: string): Promise<{ original: Raster, scanned: Raster, regions: Region[] }> {
   console.log('')
   console.log(`  original  ${basename(original)}`)
   console.log(`  scanned   ${basename(scanned)}`)
 
   return {
-    // decodeImage sniffs PNG vs JPEG from the magic bytes, so the extension is
-    // only ever used for the label above.
-    original: decodeImage(readFileSync(resolve(original))),
-    scanned:  decodeImage(readFileSync(resolve(scanned))),
+    // The codec identifies the format from the bytes, so the extension above is
+    // only ever used for the label.
+    original: await decodeImage(readFileSync(resolve(original))),
+    scanned:  await decodeImage(readFileSync(resolve(scanned))),
     regions:  [],
   }
 }
 
-function write (out: string, name: string, raster: Raster): void {
-  writeFileSync(resolve(out, name), encodeImage(raster, { format: 'png' }))
+async function write (out: string, name: string, raster: Raster): Promise<void> {
+  writeFileSync(resolve(out, name), await encodeImage(raster, { format: 'png' }))
 }
 
 /** Flags that consume the argument after them. Everything else is a switch. */
@@ -244,4 +244,19 @@ function parseRegion (spec: string): Region {
   return { id, rect: { x: numbers[0], y: numbers[1], width: numbers[2], height: numbers[3] } }
 }
 
-main()
+/**
+ * The entry point is a wrapper rather than a bare `await main()` because this app
+ * builds to CJS, where top-level await is a build error. A rejection must not
+ * become an unhandled one with exit code 0 either - the harness is how a change
+ * gets eyeballed, so a failure has to be loud.
+ */
+async function start (): Promise<void> {
+  try {
+    await main()
+  } catch (error) {
+    console.error(error)
+    process.exitCode = 1
+  }
+}
+
+void start()

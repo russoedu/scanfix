@@ -39,11 +39,15 @@ import { ransac } from './estimate/ransac'
  * If the feature stage comes up short (a nearly blank form has few corners to
  * find), the coarse estimate is returned on its own, and `method` says so.
  *
- * ## Why it is synchronous
+ * ## Why it is asynchronous
  *
- * All of it is CPU-bound with no I/O to wait on. An `async` signature would
- * suggest the event loop is free during the call, and it is not. To align
- * several pages at once, put this in a worker thread.
+ * The estimator is CPU-bound with no I/O to wait on, and an earlier version of
+ * this function was synchronous to say so. The codec changed that: decoding and
+ * encoding now run in libvips on libuv's threadpool, roughly an order of
+ * magnitude faster than the pure-JavaScript codec they replaced, and during
+ * those two stages the event loop genuinely is free. Between them it is not -
+ * the coarse search, ORB and RANSAC all run to completion on this thread - so
+ * to align several pages at once, still put this in a worker thread.
  */
 
 export interface AlignOptions {
@@ -127,7 +131,11 @@ export interface AlignResult {
   diagnostics: AlignDiagnostics
 }
 
-export function alignScan (original: ImageInput, scanned: ImageInput, options: AlignOptions = {}): AlignResult {
+export async function alignScan (
+  original: ImageInput,
+  scanned: ImageInput,
+  options: AlignOptions = {},
+): Promise<AlignResult> {
   const startedAt = Date.now()
   const {
     model = 'similarity',
@@ -147,8 +155,8 @@ export function alignScan (original: ImageInput, scanned: ImageInput, options: A
     seed = 0x5CA7F1,
   } = options
 
-  const originalRaster = decodeImage(original)
-  const scannedRaster = decodeImage(scanned)
+  const originalRaster = await decodeImage(original)
+  const scannedRaster = await decodeImage(scanned)
 
   const originalInk = inkMap(toGrayscale(originalRaster), ink)
   const scannedInk = inkMap(toGrayscale(scannedRaster), ink)
@@ -180,7 +188,7 @@ export function alignScan (original: ImageInput, scanned: ImageInput, options: A
 
   return {
     raster,
-    image:       output === 'none' ? null : encodeImage(raster, { format: output, quality }),
+    image:       output === 'none' ? null : await encodeImage(raster, { format: output, quality }),
     width:       raster.width,
     height:      raster.height,
     matrix,

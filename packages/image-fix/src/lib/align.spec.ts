@@ -17,15 +17,15 @@ function cornerError (fitted: Matrix3, truth: Matrix3, page: Raster = PAGE.raste
 }
 
 describe('alignScan', () => {
-  it('returns the identity when the scan is the original', () => {
-    const result = alignScan(PAGE.raster, PAGE.raster, { output: 'none' })
+  it('returns the identity when the scan is the original', async () => {
+    const result = await alignScan(PAGE.raster, PAGE.raster, { output: 'none' })
 
     expect(cornerError(result.matrix, IDENTITY)).toBeLessThan(0.5)
     expect(result.confidence).toBeGreaterThan(0.95)
     expect(result.method).toBe('features')
   }, 30_000)
 
-  it('recovers rotation, scale and translation from a clean scan', () => {
+  it('recovers rotation, scale and translation from a clean scan', async () => {
     const scan = simulateScan(PAGE.raster, {
       rotationDeg: 3.4,
       scale:       1.3,
@@ -34,7 +34,7 @@ describe('alignScan', () => {
       canvas:      { width: 700, height: 900 },
     })
 
-    const result = alignScan(PAGE.raster, scan.raster, { output: 'none' })
+    const result = await alignScan(PAGE.raster, scan.raster, { output: 'none' })
 
     expect(result.method).toBe('features')
     expect(cornerError(result.matrix, scan.matrix)).toBeLessThan(2)
@@ -43,7 +43,7 @@ describe('alignScan', () => {
     expect(result.confidence).toBeGreaterThan(0.85)
   }, 30_000)
 
-  it('survives noise, blur and a lighting gradient', () => {
+  it('survives noise, blur and a lighting gradient', async () => {
     const scan = simulateScan(PAGE.raster, {
       rotationDeg:  -2.2,
       scale:        1.45,
@@ -56,88 +56,88 @@ describe('alignScan', () => {
       seed:         77,
     })
 
-    const result = alignScan(PAGE.raster, scan.raster, { output: 'none' })
+    const result = await alignScan(PAGE.raster, scan.raster, { output: 'none' })
 
     expect(cornerError(result.matrix, scan.matrix)).toBeLessThan(4)
     expect(result.confidence).toBeGreaterThan(0.5)
   }, 30_000)
 
-  it('handles a scan smaller than the original', () => {
+  it('handles a scan smaller than the original', async () => {
     const scan = simulateScan(PAGE.raster, { scale: 0.62, rotationDeg: 1.5 })
 
-    const result = alignScan(PAGE.raster, scan.raster, { output: 'none' })
+    const result = await alignScan(PAGE.raster, scan.raster, { output: 'none' })
 
     expect(cornerError(result.matrix, scan.matrix)).toBeLessThan(3)
   }, 30_000)
 
-  it('fits a stretched axis when asked for an affine model', () => {
+  it('fits a stretched axis when asked for an affine model', async () => {
     const stretched = createSyntheticDocument({ width: 480, height: 620 }).raster
     const scan = simulateScan(stretched, { scale: 1.2, rotationDeg: 1.1, canvas: { width: 640, height: 820 } })
     // Squash the scan horizontally: a similarity cannot express this.
     const squashed = squash(scan.raster, 0.92)
     const truth = multiply([0.92, 0, 0, 0, 1, 0, 0, 0, 1], scan.matrix)
 
-    const similar = alignScan(stretched, squashed, { model: 'similarity', output: 'none' })
-    const affine = alignScan(stretched, squashed, { model: 'affine', output: 'none' })
+    const similar = await alignScan(stretched, squashed, { model: 'similarity', output: 'none' })
+    const affine = await alignScan(stretched, squashed, { model: 'affine', output: 'none' })
 
     expect(cornerError(affine.matrix, truth, stretched)).toBeLessThan(3)
     expect(affine.confidence).toBeGreaterThan(similar.confidence)
   }, 45_000)
 
-  it('fits a perspective warp when asked for a homography', () => {
+  it('fits a perspective warp when asked for a homography', async () => {
     const truth: Matrix3 = [1.02, 0.05, 14, -0.02, 1.01, -9, 0.00022, 0.00009, 1]
     const scanned = warpThrough(PAGE.raster, truth, 700, 900)
 
-    const result = alignScan(PAGE.raster, scanned, { model: 'homography', output: 'none' })
+    const result = await alignScan(PAGE.raster, scanned, { model: 'homography', output: 'none' })
 
     expect(cornerError(result.matrix, truth)).toBeLessThan(4)
   }, 45_000)
 
-  it('puts the output on the original canvas, whatever the scan measured', () => {
+  it('puts the output on the original canvas, whatever the scan measured', async () => {
     const scan = simulateScan(PAGE.raster, { scale: 1.9, rotationDeg: 4 })
-    const result = alignScan(PAGE.raster, scan.raster, { output: 'none' })
+    const result = await alignScan(PAGE.raster, scan.raster, { output: 'none' })
 
     expect(result.width).toBe(PAGE.raster.width)
     expect(result.height).toBe(PAGE.raster.height)
     expect(result.raster.data.length).toBe(PAGE.raster.width * PAGE.raster.height * 4)
   }, 30_000)
 
-  it('reports an inverse that undoes the matrix', () => {
+  it('reports an inverse that undoes the matrix', async () => {
     const scan = simulateScan(PAGE.raster, { rotationDeg: 2, scale: 1.1 })
-    const result = alignScan(PAGE.raster, scan.raster, { output: 'none' })
+    const result = await alignScan(PAGE.raster, scan.raster, { output: 'none' })
     const round = normalize(multiply(result.inverse, result.matrix))
 
     for (const [i, value] of round.entries()) expect(value).toBeCloseTo(IDENTITY[i], 6)
   }, 30_000)
 
-  it('accepts encoded bytes as readily as rasters', () => {
+  it('accepts encoded bytes as readily as rasters', async () => {
     const scan = simulateScan(PAGE.raster, { rotationDeg: 1.8, scale: 1.15 })
-    const result = alignScan(
-      encodeImage(PAGE.raster, { format: 'png' }),
-      encodeImage(scan.raster, { format: 'jpeg', quality: 88 }),
+    const result = await alignScan(
+      await encodeImage(PAGE.raster, { format: 'png' }),
+      await encodeImage(scan.raster, { format: 'jpeg', quality: 88 }),
       { output: 'none' },
     )
 
     expect(cornerError(result.matrix, scan.matrix)).toBeLessThan(3)
   }, 30_000)
 
-  it('encodes the output only when asked to', () => {
-    const png = alignScan(PAGE.raster, PAGE.raster, { output: 'png' })
-    const none = alignScan(PAGE.raster, PAGE.raster, { output: 'none' })
+  it('encodes the output only when asked to', async () => {
+    const png = await alignScan(PAGE.raster, PAGE.raster, { output: 'png' })
+    const none = await alignScan(PAGE.raster, PAGE.raster, { output: 'none' })
 
     expect(png.image?.[0]).toBe(0x89)
     expect(none.image).toBeNull()
   }, 30_000)
 
-  it('is deterministic', () => {
+  it('is deterministic', async () => {
     const scan = simulateScan(PAGE.raster, { rotationDeg: 2.7, scale: 1.22, noise: 0.01 })
-    const a = alignScan(PAGE.raster, scan.raster, { output: 'none' })
-    const b = alignScan(PAGE.raster, scan.raster, { output: 'none' })
+    const a = await alignScan(PAGE.raster, scan.raster, { output: 'none' })
+    const b = await alignScan(PAGE.raster, scan.raster, { output: 'none' })
 
     expect(a.matrix).toEqual(b.matrix)
   }, 45_000)
 
-  it('falls back to the coarse estimate instead of failing on a near-blank page', () => {
+  it('falls back to the coarse estimate instead of failing on a near-blank page', async () => {
     const blank = createRaster(300, 400)
     // One faint mark, far too little for a thousand corners.
     for (let y = 190; y < 210; y++)
@@ -149,15 +149,15 @@ describe('alignScan', () => {
       }
     const scan = simulateScan(blank, { translateX: 6, translateY: -4 })
 
-    const result = alignScan(blank, scan.raster, { output: 'none' })
+    const result = await alignScan(blank, scan.raster, { output: 'none' })
 
     expect(result.method).toBe('coarse')
     expect(result.raster.width).toBe(300)
   }, 30_000)
 
-  it('reports diagnostics that explain the answer', () => {
+  it('reports diagnostics that explain the answer', async () => {
     const scan = simulateScan(PAGE.raster, { rotationDeg: 5.5, scale: 1.18 })
-    const { diagnostics } = alignScan(PAGE.raster, scan.raster, { output: 'none' })
+    const { diagnostics } = await alignScan(PAGE.raster, scan.raster, { output: 'none' })
 
     expect(diagnostics.skewDeg.scanned - diagnostics.skewDeg.original).toBeCloseTo(5.5, 0)
     expect(diagnostics.inliers).toBeGreaterThan(20)
@@ -167,7 +167,7 @@ describe('alignScan', () => {
     expect(diagnostics.durationMs).toBeGreaterThanOrEqual(0)
   }, 30_000)
 
-  it('aligns a full-size page', () => {
+  it('aligns a full-size page', async () => {
     const page = createSyntheticDocument({ width: 850, height: 1100, seed: 9 })
     const scan = simulateScan(page.raster, {
       rotationDeg:  1.4,
@@ -179,7 +179,7 @@ describe('alignScan', () => {
       seed:         5,
     })
 
-    const result = alignScan(page.raster, scan.raster, { output: 'none' })
+    const result = await alignScan(page.raster, scan.raster, { output: 'none' })
 
     expect(cornerError(result.matrix, scan.matrix, page.raster)).toBeLessThan(4)
     expect(result.confidence).toBeGreaterThan(0.6)
@@ -227,7 +227,7 @@ function warpThrough (source: Raster, forward: Matrix3, width: number, height: n
 }
 
 describe('ink preparation', () => {
-  it('produces near-identical ink from a clean page and a shadowed scan of it', () => {
+  it('produces near-identical ink from a clean page and a shadowed scan of it', async () => {
     const scan = simulateScan(PAGE.raster, { illumination: 0.4 })
     const clean = inkMap(toGrayscale(PAGE.raster))
     const shadowed = inkMap(toGrayscale(scan.raster))

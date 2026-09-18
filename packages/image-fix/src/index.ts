@@ -81,7 +81,6 @@ export {
   scaling,
   similarity,
   simulateScan,
-  sniffFormat,
   toGrayscale,
   translation,
   warpGray,

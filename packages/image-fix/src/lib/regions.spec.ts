@@ -22,20 +22,21 @@ function filledForm (): Raster {
   return page
 }
 
-function byId (reports: ReturnType<typeof compareRegions>) {
+function byId (reports: Awaited<ReturnType<typeof compareRegions>>) {
   return Object.fromEntries(reports.map(r => [r.id, r]))
 }
 
 describe('compareRegions', () => {
-  it('finds no new ink when the scan is the original', () => {
-    for (const report of compareRegions(BLANK.raster, BLANK.raster, REGIONS)) {
+  it('finds no new ink when the scan is the original', async () => {
+    const reports = await compareRegions(BLANK.raster, BLANK.raster, REGIONS)
+    for (const report of reports) {
       expect(report.added).toBeCloseTo(0, 4)
       expect(report.filled).toBe(false)
     }
   })
 
-  it('spots a signature and a tick, and leaves the empty boxes alone', () => {
-    const reports = byId(compareRegions(BLANK.raster, filledForm(), REGIONS))
+  it('spots a signature and a tick, and leaves the empty boxes alone', async () => {
+    const reports = byId(await compareRegions(BLANK.raster, filledForm(), REGIONS))
 
     expect(reports.signature.filled).toBe(true)
     expect(reports['tick-1'].filled).toBe(true)
@@ -44,7 +45,7 @@ describe('compareRegions', () => {
     expect(reports.signature.added).toBeGreaterThan(reports['tick-2'].added)
   })
 
-  it('works end to end through a rotated, rescaled, noisy scan', () => {
+  it('works end to end through a rotated, rescaled, noisy scan', async () => {
     const scan = simulateScan(filledForm(), {
       rotationDeg:  -2.6,
       scale:        1.4,
@@ -56,39 +57,39 @@ describe('compareRegions', () => {
       seed:         21,
     })
 
-    const aligned = alignScan(BLANK.raster, scan.raster, { output: 'none' })
+    const aligned = await alignScan(BLANK.raster, scan.raster, { output: 'none' })
     expect(aligned.confidence).toBeGreaterThan(0.5)
 
-    const reports = byId(compareRegions(BLANK.raster, aligned.raster, REGIONS))
+    const reports = byId(await compareRegions(BLANK.raster, aligned.raster, REGIONS))
 
     expect(reports.signature.filled).toBe(true)
     expect(reports['tick-1'].filled).toBe(true)
     expect(reports['tick-2'].filled).toBe(false)
   }, 60_000)
 
-  it('does not call the printed text itself a change, at any sane tolerance', () => {
+  it('does not call the printed text itself a change, at any sane tolerance', async () => {
     const scan = simulateScan(BLANK.raster, {
       rotationDeg: 1.1,
       scale:       1.25,
       noise:       0.01,
       canvas:      { width: 720, height: 920 },
     })
-    const aligned = alignScan(BLANK.raster, scan.raster, { output: 'none' })
+    const aligned = await alignScan(BLANK.raster, scan.raster, { output: 'none' })
 
     const wholePage: Region[] = [{ id: 'page', rect: { x: 0, y: 0, width: BLANK.raster.width, height: BLANK.raster.height } }]
-    const [report] = compareRegions(BLANK.raster, aligned.raster, wholePage)
+    const [report] = await compareRegions(BLANK.raster, aligned.raster, wholePage)
 
     expect(report.added).toBeLessThan(0.02)
   }, 60_000)
 
-  it('honours a per-region threshold', () => {
+  it('honours a per-region threshold', async () => {
     const page = cloneRaster(BLANK.raster)
     drawTick(page, BLANK.regions['tick-3'])
 
-    const strict = compareRegions(BLANK.raster, page, [
+    const strict = await compareRegions(BLANK.raster, page, [
       { id: 'tick-3', rect: BLANK.regions['tick-3'], threshold: 0.9 },
     ])
-    const lenient = compareRegions(BLANK.raster, page, [
+    const lenient = await compareRegions(BLANK.raster, page, [
       { id: 'tick-3', rect: BLANK.regions['tick-3'], threshold: 0.01 },
     ])
 
@@ -96,8 +97,8 @@ describe('compareRegions', () => {
     expect(lenient[0].filled).toBe(true)
   })
 
-  it('clamps a region that hangs off the page', () => {
-    const [report] = compareRegions(BLANK.raster, BLANK.raster, [
+  it('clamps a region that hangs off the page', async () => {
+    const [report] = await compareRegions(BLANK.raster, BLANK.raster, [
       { id: 'edge', rect: { x: -50, y: -50, width: 80, height: 80 } },
     ])
 
@@ -105,19 +106,19 @@ describe('compareRegions', () => {
     expect(Number.isFinite(report.originalInk)).toBe(true)
   })
 
-  it('returns zeros for a region entirely off the page', () => {
-    const [report] = compareRegions(BLANK.raster, BLANK.raster, [
+  it('returns zeros for a region entirely off the page', async () => {
+    const [report] = await compareRegions(BLANK.raster, BLANK.raster, [
       { id: 'gone', rect: { x: 9000, y: 9000, width: 10, height: 10 } },
     ])
 
     expect(report).toMatchObject({ added: 0, removed: 0, filled: false, score: 0 })
   })
 
-  it('refuses two images on different canvases, because the coordinates would be lies', () => {
-    expect(() => compareRegions(BLANK.raster, createRaster(100, 100), REGIONS)).toThrow(/same canvas/)
+  it('refuses two images on different canvases, because the coordinates would be lies', async () => {
+    await expect(compareRegions(BLANK.raster, createRaster(100, 100), REGIONS)).rejects.toThrow(/same canvas/)
   })
 
-  it('reports removed ink when the scan lost something the original had', () => {
+  it('reports removed ink when the scan lost something the original had', async () => {
     const erased = cloneRaster(BLANK.raster)
     const box = BLANK.regions.signature
     for (let y = box.y; y < box.y + box.height; y++)
@@ -128,7 +129,7 @@ describe('compareRegions', () => {
         erased.data[i + 2] = 255
       }
 
-    const [report] = compareRegions(BLANK.raster, erased, [{ id: 'signature', rect: box }])
+    const [report] = await compareRegions(BLANK.raster, erased, [{ id: 'signature', rect: box }])
 
     expect(report.removed).toBeGreaterThan(0)
     expect(report.added).toBeCloseTo(0, 4)
@@ -136,16 +137,16 @@ describe('compareRegions', () => {
 })
 
 describe('diffDocument', () => {
-  it('summarises the page and the regions in one pass', () => {
-    const diff = diffDocument(BLANK.raster, filledForm(), REGIONS)
+  it('summarises the page and the regions in one pass', async () => {
+    const diff = await diffDocument(BLANK.raster, filledForm(), REGIONS)
 
     expect(diff.added).toBeGreaterThan(0)
     expect(diff.regions).toHaveLength(4)
     expect(diff.regions.find(r => r.id === 'signature')?.filled).toBe(true)
   })
 
-  it('reports nothing changed for an identical pair', () => {
-    const diff = diffDocument(BLANK.raster, BLANK.raster)
+  it('reports nothing changed for an identical pair', async () => {
+    const diff = await diffDocument(BLANK.raster, BLANK.raster)
 
     expect(diff.added).toBeCloseTo(0, 5)
     expect(diff.removed).toBeCloseTo(0, 5)
@@ -154,8 +155,8 @@ describe('diffDocument', () => {
 })
 
 describe('renderDiff', () => {
-  it('paints added ink red and leaves agreed ink grey', () => {
-    const overlay = renderDiff(BLANK.raster, filledForm())
+  it('paints added ink red and leaves agreed ink grey', async () => {
+    const overlay = await renderDiff(BLANK.raster, filledForm())
 
     let red = 0
     let grey = 0

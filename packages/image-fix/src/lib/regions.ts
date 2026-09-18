@@ -66,27 +66,27 @@ export interface DocumentDiff {
  * original's canvas. Feeding a raw scan in produces confident nonsense, because
  * every rectangle then names a different part of the page in each image.
  */
-export function compareRegions (
+export async function compareRegions (
   original: ImageInput,
   aligned: ImageInput,
   regions: readonly Region[],
   options: RegionOptions = {},
-): RegionReport[] {
+): Promise<RegionReport[]> {
   const { tolerance = 2, threshold = 0.02, ink } = options
-  const masks = buildMasks(original, aligned, ink, tolerance)
+  const masks = await buildMasks(original, aligned, ink, tolerance)
 
   return regions.map(region => report(region, masks, threshold))
 }
 
 /** Page-wide added/removed ink, plus per-region detail for any regions supplied. */
-export function diffDocument (
+export async function diffDocument (
   original: ImageInput,
   aligned: ImageInput,
   regions: readonly Region[] = [],
   options: RegionOptions = {},
-): DocumentDiff {
+): Promise<DocumentDiff> {
   const { tolerance = 2, threshold = 0.02, ink } = options
-  const masks = buildMasks(original, aligned, ink, tolerance)
+  const masks = await buildMasks(original, aligned, ink, tolerance)
   const full: Rect = { x: 0, y: 0, width: masks.width, height: masks.height }
   const whole = report({ id: '__document__', rect: full }, masks, threshold)
 
@@ -105,13 +105,13 @@ export function diffDocument (
  * signature; a misaligned one is red and blue confetti along every stroke,
  * which is the fastest way to tell the two failures apart.
  */
-export function renderDiff (
+export async function renderDiff (
   original: ImageInput,
   aligned: ImageInput,
   options: RegionOptions = {},
-): Raster {
+): Promise<Raster> {
   const { tolerance = 2, ink } = options
-  const masks = buildMasks(original, aligned, ink, tolerance)
+  const masks = await buildMasks(original, aligned, ink, tolerance)
   const { width, height } = masks
   const data = new Uint8ClampedArray(width * height * 4)
 
@@ -156,14 +156,14 @@ interface Masks {
   scanDilated:     BinaryImage
 }
 
-function buildMasks (
+async function buildMasks (
   original: ImageInput,
   aligned: ImageInput,
   ink: InkOptions | undefined,
   tolerance: number,
-): Masks {
-  const originalRaster = decodeImage(original)
-  const alignedRaster = decodeImage(aligned)
+): Promise<Masks> {
+  const originalRaster = await decodeImage(original)
+  const alignedRaster = await decodeImage(aligned)
 
   if (originalRaster.width !== alignedRaster.width || originalRaster.height !== alignedRaster.height)
     throw new Error(
