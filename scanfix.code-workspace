@@ -116,6 +116,34 @@
         "script": "ink:build",
         "problemMatcher": [],
         "group": "build"
+      },
+      {
+        "label": "align: qa",
+        "type": "npm",
+        "script": "align:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "align: build",
+        "type": "npm",
+        "script": "align:build",
+        "problemMatcher": [],
+        "group": "build"
+      },
+      {
+        "label": "diff: qa",
+        "type": "npm",
+        "script": "diff:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "diff: build",
+        "type": "npm",
+        "script": "diff:build",
+        "problemMatcher": [],
+        "group": "build"
       }
     ]
   },

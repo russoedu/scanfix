@@ -1,6 +1,6 @@
 import { applyPoint, createRaster, createSyntheticDocument, encodeImage, IDENTITY, inkMap, invert, multiply, normalize, simulateScan, toGrayscale } from '@scanmate/ink'
 import type { Matrix3, Raster } from '@scanmate/ink'
-import { alignScan } from './align'
+import { alignScan } from './align-scan.use-case'
 
 const PAGE = createSyntheticDocument({ width: 480, height: 620 })
 

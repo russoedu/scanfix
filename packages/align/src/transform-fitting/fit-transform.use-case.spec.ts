@@ -1,7 +1,7 @@
 import { applyPoint, createRandom, multiply, scaling, similarity } from '@scanmate/ink'
 import type { Matrix3, Point } from '@scanmate/ink'
-import { fitAffine, fitHomography, fitModel, fitSimilarity, minimumSamples } from './models'
-import type { Correspondence } from './models'
+import { fitAffine, fitHomography, fitModel, fitSimilarity, minimumSamples } from './fit-transform.use-case'
+import type { Correspondence } from './fit-transform.use-case'
 
 const DEGREE = Math.PI / 180
 

@@ -1,5 +1,22 @@
 # @scanmate/image-fix
 
+> **Deprecated.** This package has been split into focused packages, and this one
+> now only forwards to them so existing imports keep working:
+>
+> | You used | Now lives in |
+> |---|---|
+> | `alignScan`, `polishTranslation`, the estimator building blocks | [`@scanmate/align`](../align) |
+> | `compareRegions`, `diffDocument`, `renderDiff` | [`@scanmate/diff`](../diff) |
+> | rasters, the codec, ink, warps, matrices, scoring, synthetic fixtures | [`@scanmate/ink`](../ink) |
+>
+> Two behaviour changes arrived with the split. Every function that decodes or
+> encodes is now **asynchronous** - the codec moved to libvips through `sharp`, which
+> is roughly 20x faster at encoding a page and reads TIFF, HEIF, WebP and AVIF - so
+> `alignScan`, `compareRegions`, `diffDocument`, `renderDiff`, `decodeImage` and
+> `encodeImage` all return promises. And `sniffFormat` is gone; use
+> `readImageMetadata` from `@scanmate/ink`. The "pure JavaScript, no native bindings"
+> section below describes the old codec and no longer applies.
+
 Put a scanned page back on top of the page it came from.
 
 You render page 1 of a PDF, you send the document out, and a photograph or a

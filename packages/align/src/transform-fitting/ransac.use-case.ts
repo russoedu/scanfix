@@ -1,7 +1,7 @@
 import { createRandom, isPlausible, reprojectionError } from '@scanmate/ink'
 import type { Matrix3, TransformModel } from '@scanmate/ink'
-import { fitModel, minimumSamples } from './models'
-import type { Correspondence } from './models'
+import { fitModel, minimumSamples } from './fit-transform.use-case'
+import type { Correspondence } from './fit-transform.use-case'
 
 /**
  * RANSAC: fit the model that the largest number of correspondences agree with.

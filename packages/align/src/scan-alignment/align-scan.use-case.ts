@@ -1,11 +1,11 @@
 import { binarize, conjugateScale, correlation, decodeImage, decompose, downscaleGray, encodeImage, inkMap, intersectionOverUnion, invert, multiply, rebase, toGrayscale, translation, warpGray, warpRaster } from '@scanmate/ink'
 import type { GrayImage, ImageFormat, ImageInput, InkOptions, Interpolation, Matrix3, Raster, TransformModel, TransformSummary } from '@scanmate/ink'
-import { estimateCoarse } from './estimate/coarse'
-import type { CoarseResult } from './estimate/coarse'
-import { detectAndDescribe } from './estimate/features'
-import { matchFeatures } from './estimate/match'
-import { phaseCorrelate } from './estimate/phaseCorrelation'
-import { ransac } from './estimate/ransac'
+import { estimateCoarse } from '../coarse-estimation'
+import type { CoarseResult } from '../coarse-estimation'
+import { detectAndDescribe } from '../feature-matching'
+import { matchFeatures } from '../feature-matching'
+import { phaseCorrelate } from '../phase-correlation'
+import { ransac } from '../transform-fitting'
 
 /**
  * Align a scan onto the page it was made from.

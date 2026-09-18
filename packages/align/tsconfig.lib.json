@@ -18,12 +18,6 @@
   "references": [
     {
       "path": "../ink/tsconfig.lib.json"
-    },
-    {
-      "path": "../diff/tsconfig.lib.json"
-    },
-    {
-      "path": "../align/tsconfig.lib.json"
     }
   ],
   "exclude": [

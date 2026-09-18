@@ -68,7 +68,7 @@ export default [
   ...mnci({ workspaceRoot: import.meta.dirname }),
   {
     name:  'local/image-kernels',
-    files: ['packages/{ink,image-fix}/src/**/*.ts'],
+    files: ['packages/{ink,align,diff,image-fix}/src/**/*.ts'],
     rules: {
       // Every pixel loop in this package is a nested loop, and the cheapest way
       // to skip a pixel is `continue`. The rule wants the inner loop extracted

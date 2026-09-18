@@ -16,26 +16,43 @@
  * @deprecated Import from `@scanmate/align`, `@scanmate/diff` or `@scanmate/ink`.
  */
 
-// --- This package's own behaviour ---
+// --- Re-exported from @scanmate/align and @scanmate/diff, unchanged ---
 
-export { alignScan, polishTranslation } from './lib/align'
-export type { AlignDiagnostics, AlignOptions, AlignResult } from './lib/align'
+export {
+  alignScan,
+  detectAndDescribe,
+  estimateCoarse,
+  findInliers,
+  fitAffine,
+  fitHomography,
+  fitModel,
+  fitSimilarity,
+  hamming,
+  matchFeatures,
+  minimumSamples,
+  phaseCorrelate,
+  polishTranslation,
+  popcount,
+  ransac,
+} from '@scanmate/align'
+export type {
+  AlignDiagnostics,
+  AlignOptions,
+  AlignResult,
+  CoarseOptions,
+  CoarseResult,
+  Correspondence,
+  FeatureOptions,
+  FeatureSet,
+  Keypoint,
+  MatchOptions,
+  PhaseCorrelationResult,
+  RansacOptions,
+  RansacResult,
+} from '@scanmate/align'
 
-export { compareRegions, diffDocument, renderDiff } from './lib/regions'
-export type { DocumentDiff, Region, RegionOptions, RegionReport } from './lib/regions'
-
-export { estimateCoarse } from './lib/estimate/coarse'
-export type { CoarseOptions, CoarseResult } from './lib/estimate/coarse'
-export { detectAndDescribe } from './lib/estimate/features'
-export type { FeatureOptions, FeatureSet, Keypoint } from './lib/estimate/features'
-export { hamming, matchFeatures, popcount } from './lib/estimate/match'
-export type { MatchOptions } from './lib/estimate/match'
-export { fitAffine, fitHomography, fitModel, fitSimilarity, minimumSamples } from './lib/estimate/models'
-export type { Correspondence } from './lib/estimate/models'
-export { phaseCorrelate } from './lib/estimate/phaseCorrelation'
-export type { PhaseCorrelationResult } from './lib/estimate/phaseCorrelation'
-export { findInliers, ransac } from './lib/estimate/ransac'
-export type { RansacOptions, RansacResult } from './lib/estimate/ransac'
+export { compareRegions, diffDocument, renderDiff } from '@scanmate/diff'
+export type { DocumentDiff, Region, RegionOptions, RegionReport } from '@scanmate/diff'
 
 // --- Re-exported from @scanmate/ink, unchanged ---
 

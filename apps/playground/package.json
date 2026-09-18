@@ -113,6 +113,8 @@
     }
   },
   "dependencies": {
-    "@scanmate/image-fix": "*"
+    "@scanmate/align": "*",
+    "@scanmate/diff": "*",
+    "@scanmate/ink": "*"
   }
 }

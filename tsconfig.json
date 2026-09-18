@@ -11,6 +11,12 @@
     },
     {
       "path": "./packages/ink"
+    },
+    {
+      "path": "./packages/align"
+    },
+    {
+      "path": "./packages/diff"
     }
   ],
   "compilerOptions": {}

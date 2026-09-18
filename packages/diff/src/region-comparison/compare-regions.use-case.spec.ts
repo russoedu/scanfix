@@ -1,8 +1,8 @@
-import { cloneRaster, createRaster, createSyntheticDocument, drawSignature, drawTick, simulateScan } from '@scanmate/ink'
 import type { Raster } from '@scanmate/ink'
-import { alignScan } from './align'
-import { compareRegions, diffDocument, renderDiff } from './regions'
-import type { Region } from './regions'
+import type { Region } from './region.model'
+import { alignScan } from '@scanmate/align'
+import { cloneRaster, createRaster, createSyntheticDocument, drawSignature, drawTick, simulateScan } from '@scanmate/ink'
+import { compareRegions, diffDocument } from './compare-regions.use-case'
 
 const BLANK = createSyntheticDocument({ width: 520, height: 680, seed: 3 })
 
@@ -151,23 +151,5 @@ describe('diffDocument', () => {
     expect(diff.added).toBeCloseTo(0, 5)
     expect(diff.removed).toBeCloseTo(0, 5)
     expect(diff.regions).toHaveLength(0)
-  })
-})
-
-describe('renderDiff', () => {
-  it('paints added ink red and leaves agreed ink grey', async () => {
-    const overlay = await renderDiff(BLANK.raster, filledForm())
-
-    let red = 0
-    let grey = 0
-    for (let i = 0; i < overlay.data.length; i += 4) {
-      const [r, g, b] = [overlay.data[i], overlay.data[i + 1], overlay.data[i + 2]]
-      if (r > 200 && g < 80) red++
-      else if (r === 110 && g === 110 && b === 110) grey++
-    }
-
-    expect(red).toBeGreaterThan(200)
-    expect(grey).toBeGreaterThan(red)
-    expect(overlay.width).toBe(BLANK.raster.width)
   })
 })

@@ -19,7 +19,11 @@
     "playground:build": "nx run playground:build",
     "playground:start": "nx run playground:serve",
     "ink:qa": "nx run ink:lint && nx run ink:test",
-    "ink:build": "nx run ink:build"
+    "ink:build": "nx run ink:build",
+    "align:qa": "nx run align:lint && nx run align:test",
+    "align:build": "nx run align:build",
+    "diff:qa": "nx run diff:lint && nx run diff:test",
+    "diff:build": "nx run diff:build"
   },
   "private": true,
   "devDependencies": {
