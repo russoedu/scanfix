@@ -131,6 +131,24 @@ describe('extractPages', () => {
     expect(events.filter(e => e.phase === 'start')).toHaveLength(1)
   })
 
+  it('renders when the host process already put a Path2D from another canvas module in scope', async () => {
+    // pdf.js fills the global Path2D once, from whichever copy loads first. One
+    // from a foreign module - here, a class with no drawing methods at all -
+    // must neither be used for this render nor be lost from the host after it.
+    const scope = globalThis as { Path2D?: unknown }
+    const host = scope.Path2D
+    class ForeignPath2D {}
+    scope.Path2D = ForeignPath2D
+    try {
+      const [page] = await extractPages(await createSyntheticPdf([PRINTED]), { dpi: 72, output: 'none' })
+
+      expect(page.image.width).toBe(596)
+      expect(scope.Path2D).toBe(ForeignPath2D)
+    } finally {
+      scope.Path2D = host
+    }
+  })
+
   it('refuses an empty input rather than hand it to pdf.js', async () => {
     await expect(extractPages(new Uint8Array(0))).rejects.toThrow(/empty PDF/)
   })
