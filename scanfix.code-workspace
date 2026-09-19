@@ -56,7 +56,21 @@
     },
     "[toml]": {
       "editor.defaultFormatter": "dbaeumer.vscode-eslint"
-    }
+    },
+    "github.copilot.chat.commitMessageGeneration.instructions": [
+      {
+        "text": "Use './commitlint.config.mjs' file in the root of the repository"
+      },
+      {
+        "text": "The <type> can be one of the following: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert."
+      },
+      {
+        "text": "The <scope> is optional and can be any string that describes the area of the codebase affected by the change."
+      },
+      {
+        "text": "The <subject> should be a short description of the change in imperative mood (e.g., 'fix bug' instead of 'fixed bug')."
+      }
+    ]
   },
   "extensions": {
     "recommendations": [
@@ -102,6 +116,132 @@
         "script": "playground:start",
         "problemMatcher": [],
         "isBackground": true
+      },
+      {
+        "label": "ink: qa",
+        "type": "npm",
+        "script": "ink:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "ink: build",
+        "type": "npm",
+        "script": "ink:build",
+        "problemMatcher": [],
+        "group": "build"
+      },
+      {
+        "label": "align: qa",
+        "type": "npm",
+        "script": "align:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "align: build",
+        "type": "npm",
+        "script": "align:build",
+        "problemMatcher": [],
+        "group": "build"
+      },
+      {
+        "label": "diff: qa",
+        "type": "npm",
+        "script": "diff:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "diff: build",
+        "type": "npm",
+        "script": "diff:build",
+        "problemMatcher": [],
+        "group": "build"
+      },
+      {
+        "label": "extract: qa",
+        "type": "npm",
+        "script": "extract:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "extract: build",
+        "type": "npm",
+        "script": "extract:build",
+        "problemMatcher": [],
+        "group": "build"
+      },
+      {
+        "label": "enhance: qa",
+        "type": "npm",
+        "script": "enhance:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "enhance: build",
+        "type": "npm",
+        "script": "enhance:build",
+        "problemMatcher": [],
+        "group": "build"
+      },
+      {
+        "label": "merge: qa",
+        "type": "npm",
+        "script": "merge:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "merge: build",
+        "type": "npm",
+        "script": "merge:build",
+        "problemMatcher": [],
+        "group": "build"
+      },
+      {
+        "label": "ocr: qa",
+        "type": "npm",
+        "script": "ocr:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "ocr: build",
+        "type": "npm",
+        "script": "ocr:build",
+        "problemMatcher": [],
+        "group": "build"
+      },
+      {
+        "label": "find: qa",
+        "type": "npm",
+        "script": "find:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "find: build",
+        "type": "npm",
+        "script": "find:build",
+        "problemMatcher": [],
+        "group": "build"
+      },
+      {
+        "label": "audit: qa",
+        "type": "npm",
+        "script": "audit:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "audit: build",
+        "type": "npm",
+        "script": "audit:build",
+        "problemMatcher": [],
+        "group": "build"
       }
     ]
   },

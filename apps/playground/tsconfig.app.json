@@ -31,7 +31,16 @@
   ],
   "references": [
     {
-      "path": "../../packages/image-fix/tsconfig.lib.json"
+      "path": "../../packages/ink/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/extract/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/diff/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/align/tsconfig.lib.json"
     }
   ]
 }

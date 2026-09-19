@@ -5,6 +5,9 @@ dist
 tmp
 out-tsc
 
+# tsc --build writes one of these beside every solution tsconfig.
+*.tsbuildinfo
+
 # playground scratch output (aligned.png, diff.png, ...)
 playground-output
 

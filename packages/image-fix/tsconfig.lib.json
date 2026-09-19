@@ -15,7 +15,17 @@
   "include": [
     "src/**/*.ts"
   ],
-  "references": [],
+  "references": [
+    {
+      "path": "../ink/tsconfig.lib.json"
+    },
+    {
+      "path": "../diff/tsconfig.lib.json"
+    },
+    {
+      "path": "../align/tsconfig.lib.json"
+    }
+  ],
   "exclude": [
     "vite.config.ts",
     "vite.config.mts",

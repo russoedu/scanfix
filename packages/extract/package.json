@@ -1,0 +1,53 @@
+{
+  "name": "@scanmate/extract",
+  "version": "0.0.1",
+  "description": "PDF pages as rasters with their metadata: text layer with positions, scanned-or-born-digital, real resolution - and an original paired with its scan.",
+  "license": "MIT",
+  "author": "Eduardo Russo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/russoedu/scanmate.git",
+    "directory": "packages/extract"
+  },
+  "homepage": "https://github.com/russoedu/scanmate/tree/main/packages/extract#readme",
+  "bugs": {
+    "url": "https://github.com/russoedu/scanmate/issues"
+  },
+  "keywords": [
+    "pdf",
+    "scan",
+    "extract",
+    "text-layer",
+    "rasterize",
+    "document"
+  ],
+  "type": "module",
+  "main": "./dist/index.esm.js",
+  "module": "./dist/index.esm.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/index.esm.js",
+      "default": "./dist/index.esm.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo",
+    "!**/*.d.ts.map",
+    "!**/*.js.map"
+  ],
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.9",
+    "@scanmate/ink": "^0.0.1",
+    "pdfjs-dist": "^6.3.289"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@scanmate/align": "^0.0.1"
+  }
+}

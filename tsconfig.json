@@ -8,6 +8,33 @@
     },
     {
       "path": "./apps/playground"
+    },
+    {
+      "path": "./packages/ink"
+    },
+    {
+      "path": "./packages/align"
+    },
+    {
+      "path": "./packages/diff"
+    },
+    {
+      "path": "./packages/extract"
+    },
+    {
+      "path": "./packages/enhance"
+    },
+    {
+      "path": "./packages/merge"
+    },
+    {
+      "path": "./packages/ocr"
+    },
+    {
+      "path": "./packages/find"
+    },
+    {
+      "path": "./packages/audit"
     }
   ],
   "compilerOptions": {}

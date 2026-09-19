@@ -1,0 +1,56 @@
+{
+  "name": "@scanmate/ocr",
+  "version": "0.0.1",
+  "description": "How closely a scan's text matches the original's: OCR matched run by run on the page, figures held exact, every difference located.",
+  "license": "MIT",
+  "author": "Eduardo Russo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/russoedu/scanmate.git",
+    "directory": "packages/ocr"
+  },
+  "homepage": "https://github.com/russoedu/scanmate/tree/main/packages/ocr#readme",
+  "bugs": {
+    "url": "https://github.com/russoedu/scanmate/issues"
+  },
+  "keywords": [
+    "ocr",
+    "tesseract",
+    "scan",
+    "text-similarity",
+    "levenshtein",
+    "document",
+    "verification"
+  ],
+  "type": "module",
+  "main": "./dist/index.esm.js",
+  "module": "./dist/index.esm.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/index.esm.js",
+      "default": "./dist/index.esm.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo",
+    "!**/*.d.ts.map",
+    "!**/*.js.map"
+  ],
+  "dependencies": {
+    "@scanmate/ink": "^0.0.1",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "fastest-levenshtein": "^1.0.16",
+    "tesseract.js": "^7.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@scanmate/align": "^0.0.1",
+    "@scanmate/extract": "^0.0.1"
+  }
+}

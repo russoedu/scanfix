@@ -1,22 +1,23 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
-
-import type { AlignResult, Raster, Region, RegionReport, TransformModel } from '@scanmate/image-fix'
+import type { AlignResult } from '@scanmate/align'
+import { alignPages, alignScan } from '@scanmate/align'
+import type { Region, RegionReport } from '@scanmate/diff'
+import { compareRegions, diffPages, renderDiff } from '@scanmate/diff'
+import { extractPair } from '@scanmate/extract'
+import type { Raster, TransformModel } from '@scanmate/ink'
 import {
-  alignScan,
   cloneRaster,
-  compareRegions,
-  decodeImage,
   createSyntheticDocument,
+  decodeImage,
   drawSignature,
   drawTick,
   encodeImage,
-  renderDiff,
   simulateScan,
-} from '@scanmate/image-fix'
+} from '@scanmate/ink'
 
 /**
- * A harness for looking at what `@scanmate/image-fix` actually did.
+ * A harness for looking at what `@scanmate/align` and `@scanmate/diff` actually did.
  *
  * Unit tests prove the matrix is right to a fraction of a pixel; they cannot
  * tell you that a scan of a real form came out legible. This writes the
@@ -26,37 +27,47 @@ import {
  * npm run playground:start                      # synthetic form, end to end
  * npm run playground:start -- --original page.png --scanned returned.jpg \
  *   --region signature:76,905,420,78 --model homography
+ * npm run playground:start -- --original contract.pdf --scanned returned.pdf
  * ```
+ *
+ * Given two PDFs it runs the document pipeline - extract, align every page, and
+ * an overlay per page - and writes `page-N-aligned.png` and `page-N-diff.png`.
  */
 
 interface Options {
   original?: string
   scanned?:  string
   out:       string
-  model:     TransformModel
+  model:     TransformModel | 'all'
   regions:   Region[]
   json:      boolean
 }
 
-function main (): void {
+async function main (): Promise<void> {
   const options = parseArguments(process.argv.slice(2))
   mkdirSync(options.out, { recursive: true })
 
+  if (isPdf(options.original) && isPdf(options.scanned)) {
+    await runDocument(options.original, options.scanned, options)
+
+    return
+  }
+
   const inputs = options.original !== undefined && options.scanned !== undefined
-    ? loadPair(options.original, options.scanned)
-    : buildDemo(options.out)
+    ? await loadPair(options.original, options.scanned)
+    : await buildDemo(options.out)
 
   const regions = options.regions.length > 0 ? options.regions : inputs.regions
 
   const started = Date.now()
-  const result = alignScan(inputs.original, inputs.scanned, {
+  const result = await alignScan(inputs.original, inputs.scanned, {
     model:  options.model,
     output: 'none',
   })
-  const reports = compareRegions(inputs.original, result.raster, regions)
+  const reports = await compareRegions(inputs.original, result.raster, regions)
 
-  write(options.out, 'aligned.png', result.raster)
-  write(options.out, 'diff.png', renderDiff(inputs.original, result.raster))
+  await write(options.out, 'aligned.png', result.raster)
+  await write(options.out, 'diff.png', await renderDiff(inputs.original, result.raster))
 
   if (options.json) {
     console.log(JSON.stringify({ result: summarise(result), regions: reports }, null, 2))
@@ -74,6 +85,10 @@ function report (result: AlignResult, regions: RegionReport[], out: string, elap
   console.log('  alignment')
   console.log('  ─────────────────────────────────────────────')
   console.log(`  method            ${result.method} (coarse guess: ${diagnostics.coarseStrategy})`)
+  const tried = diagnostics.attempts
+    .map(a => `${a.model} ${a.confidence === null ? 'rejected' : a.confidence.toFixed(3)}`)
+    .join(', ')
+  console.log(`  model             ${diagnostics.selectedModel} (tried ${tried})`)
   console.log(`  confidence        ${bar(result.confidence)} ${result.confidence.toFixed(3)}`)
   console.log(`  ink overlap       ${bar(diagnostics.intersectionOverUnion)} ${diagnostics.intersectionOverUnion.toFixed(3)}`)
   console.log(`  rotation          ${transform.rotationDeg.toFixed(3)}°`)
@@ -126,7 +141,7 @@ function summarise (result: AlignResult): Record<string, unknown> {
 }
 
 /** A printed form, a filled-in copy of it, and a bad scan of that copy. */
-function buildDemo (out: string): { original: Raster, scanned: Raster, regions: Region[] } {
+async function buildDemo (out: string): Promise<{ original: Raster, scanned: Raster, regions: Region[] }> {
   const page = createSyntheticDocument({ width: 850, height: 1100 })
 
   const filled = cloneRaster(page.raster)
@@ -145,8 +160,8 @@ function buildDemo (out: string): { original: Raster, scanned: Raster, regions: 
     seed:         17,
   })
 
-  write(out, 'original.png', page.raster)
-  write(out, 'scanned.png', scan.raster)
+  await write(out, 'original.png', page.raster)
+  await write(out, 'scanned.png', scan.raster)
 
   console.log('')
   console.log('  no --original/--scanned given, so running the built-in demo:')
@@ -160,31 +175,93 @@ function buildDemo (out: string): { original: Raster, scanned: Raster, regions: 
   }
 }
 
-function loadPair (original: string, scanned: string): { original: Raster, scanned: Raster, regions: Region[] } {
+async function loadPair (original: string, scanned: string): Promise<{ original: Raster, scanned: Raster, regions: Region[] }> {
   console.log('')
   console.log(`  original  ${basename(original)}`)
   console.log(`  scanned   ${basename(scanned)}`)
 
   return {
-    // decodeImage sniffs PNG vs JPEG from the magic bytes, so the extension is
-    // only ever used for the label above.
-    original: decodeImage(readFileSync(resolve(original))),
-    scanned:  decodeImage(readFileSync(resolve(scanned))),
+    // The codec identifies the format from the bytes, so the extension above is
+    // only ever used for the label.
+    original: await decodeImage(readFileSync(resolve(original))),
+    scanned:  await decodeImage(readFileSync(resolve(scanned))),
     regions:  [],
   }
 }
 
-function write (out: string, name: string, raster: Raster): void {
-  writeFileSync(resolve(out, name), encodeImage(raster, { format: 'png' }))
+function isPdf (path: string | undefined): path is string {
+  return path?.toLowerCase().endsWith('.pdf') === true
+}
+
+/**
+ * Two PDFs: extract every page pair at the scan's resolution, align them all, and
+ * diff each page. `--region` rectangles are read as PDF points from the page's
+ * top-left and checked on every page; the overlay is annotated - green for a
+ * region that was filled in, amber for one that was not, magenta around any
+ * change nobody expected.
+ */
+async function runDocument (original: string, scanned: string, options: Options): Promise<void> {
+  console.log('')
+  console.log(`  original  ${basename(original)}`)
+  console.log(`  scanned   ${basename(scanned)}`)
+
+  const started = Date.now()
+  const document = await extractPair({ original, scanned }, { output: 'none' })
+  const extracted = Date.now()
+  const aligned = await alignPages(document.pages, { model: options.model, output: 'none' })
+  const expected = aligned.flatMap(page => options.regions.map(region => ({ page: page.page, id: region.id, ...region.rect })))
+  const diffs = await diffPages(aligned, expected, { output: 'none', annotate: true })
+
+  console.log('')
+  console.log('  page  original  scanned   dpi  model       confidence       rotation  filled        unexpected  missing')
+  console.log(`  ${'─'.repeat(100)}`)
+  const summary = []
+  for (const [i, page] of aligned.entries()) {
+    const { aligned: result, metadata } = page
+    const diff = diffs[i]
+    await write(options.out, `page-${page.page}-aligned.png`, result.raster)
+    await write(options.out, `page-${page.page}-diff.png`, diff.diffRaster)
+
+    const filled = diff.expected.filter(e => e.identified).map(e => e.id).join(',') || '-'
+    const kinds = `${metadata.original.kind.padEnd(8)}  ${metadata.scanned.kind.padEnd(8)}`
+    const fit = `${result.diagnostics.selectedModel.padEnd(10)}  ${bar(result.confidence)} ${result.confidence.toFixed(3)}`
+    const changes = `${String(diff.unexpected.length).padStart(10)}  ${String(diff.missing.length).padStart(7)}${diff.truncated ? '  (truncated)' : ''}`
+    console.log(
+      `  ${String(page.page).padStart(4)}  ${kinds}  ${String(page.scanned.dpi).padStart(4)}  ${fit}` +
+      `  ${result.transform.rotationDeg.toFixed(2).padStart(7)}°  ${filled.padEnd(12)}${changes}`,
+    )
+    summary.push({
+      page:       page.page,
+      result:     summarise(result),
+      expected:   diff.expected,
+      unexpected: diff.unexpected,
+      missing:    diff.missing,
+    })
+  }
+
+  const { unpaired, pageCount } = document
+  console.log('')
+  console.log(`  pages     ${pageCount.original} original, ${pageCount.scanned} scanned`)
+  if (unpaired.original.length > 0) console.log(`  MISSING   original pages with no scan: ${unpaired.original.join(', ')}`)
+  if (unpaired.scanned.length > 0) console.log(`  EXTRA     scanned pages with no original: ${unpaired.scanned.join(', ')}`)
+  console.log(`  elapsed   extract ${extracted - started} ms, align + diff ${Date.now() - extracted} ms`)
+  console.log(`  wrote     ${resolve(options.out)}`)
+
+  if (options.json) console.log(JSON.stringify({ unpaired, pageCount, pages: summary }, null, 2))
+}
+
+async function write (out: string, name: string, raster: Raster): Promise<void> {
+  writeFileSync(resolve(out, name), await encodeImage(raster, { format: 'png' }))
 }
 
 /** Flags that consume the argument after them. Everything else is a switch. */
 const VALUED = new Set(['--original', '--scanned', '--out', '--model', '--region'])
+const MODELS = new Set(['all', 'similarity', 'affine', 'homography'])
 
 function parseArguments (argv: string[]): Options {
   const options: Options = {
     out:     'playground-output',
-    model:   'similarity',
+    model:   'all',
     regions: [],
     json:    false,
   }
@@ -224,7 +301,8 @@ function applyFlag (options: Options, flag: string, value: string): void {
       break
     }
     case '--model': {
-      options.model = value as TransformModel
+      if (!MODELS.has(value)) throw new Error(`--model must be one of ${[...MODELS].join(', ')}, got ${value}`)
+      options.model = value as Options['model']
       break
     }
     default: {
@@ -244,4 +322,19 @@ function parseRegion (spec: string): Region {
   return { id, rect: { x: numbers[0], y: numbers[1], width: numbers[2], height: numbers[3] } }
 }
 
-main()
+/**
+ * The entry point is a wrapper rather than a bare `await main()` because this app
+ * builds to CJS, where top-level await is a build error. A rejection must not
+ * become an unhandled one with exit code 0 either - the harness is how a change
+ * gets eyeballed, so a failure has to be loud.
+ */
+async function start (): Promise<void> {
+  try {
+    await main()
+  } catch (error) {
+    console.error(error)
+    process.exitCode = 1
+  }
+}
+
+void start()

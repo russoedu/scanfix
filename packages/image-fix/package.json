@@ -1,7 +1,7 @@
 {
   "name": "@scanmate/image-fix",
   "version": "0.0.1",
-  "description": "Align a scanned or photographed page onto the original it came from, and report which known regions gained ink. Pure JavaScript, no native bindings.",
+  "description": "Deprecated: forwards to @scanmate/align, @scanmate/diff and @scanmate/ink. Align a scanned or photographed page onto the original it came from, and report which known regions gained ink.",
   "keywords": [
     "scan",
     "alignment",
@@ -50,10 +50,8 @@
     "prepack": "node tools/declaration-extensions.cjs"
   },
   "dependencies": {
-    "jpeg-js": "^0.4.4",
-    "pngjs": "^7.0.0"
-  },
-  "devDependencies": {
-    "@types/pngjs": "^6.0.5"
+    "@scanmate/align": "^0.0.1",
+    "@scanmate/diff": "^0.0.1",
+    "@scanmate/ink": "^0.0.1"
   }
 }
