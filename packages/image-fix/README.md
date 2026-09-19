@@ -36,29 +36,20 @@ npm install @scanmate/align @scanmate/diff @scanmate/ink @scanmate/extract
 
 ---
 
-## Legacy Quick Start
+## Quick Start
 
 ```ts
 import { alignScan, compareRegions, decodeImage } from '@scanmate/image-fix'
 import { readFile } from 'node:fs/promises'
 
-// 1. Decode original template and returned scan
 const original = await decodeImage(await readFile('contract_p1.png'))
 const scanned = await decodeImage(await readFile('returned_scan.jpg'))
 
-// 2. Align scan to original template canvas
 const result = await alignScan(original, scanned, { model: 'similarity' })
 
-console.log(`Alignment Confidence: ${(result.confidence * 100).toFixed(1)}%`)
-console.log(`Rotation Angle: ${result.transform.rotationDeg.toFixed(2)}°`)
-
-// 3. Verify signature block inside original canvas coordinates
 const [sigReport] = compareRegions(original, result.raster, [
   { id: 'signature', rect: { x: 76, y: 905, width: 420, height: 78 } },
 ])
-
-console.log(`Signature Present: ${sigReport.filled}`)
-console.log(`Added Ink Density: ${(sigReport.added * 100).toFixed(2)}%`)
 ```
 
 ---
@@ -90,29 +81,74 @@ flowchart TD
 
 ---
 
-## Re-Export Mapping
+## Comprehensive Re-Export API Reference
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Caller
-    participant Facade as @scanmate/image-fix
-    participant Align as @scanmate/align
-    participant Diff as @scanmate/diff
-    participant Ink as @scanmate/ink
+### 1. Alignment Methods (Delegates to [`@scanmate/align`](../align))
 
-    Caller->>Facade: alignScan(original, scanned)
-    Facade->>Align: Forward to alignScan()
-    Align->>Ink: Normalize Ink & Inverse Warp
-    Align-->>Facade: Return AlignResult
-    Facade-->>Caller: Return AlignResult
+#### `alignScan(original, scanned, options?: AlignOptions): Promise<AlignResult>`
+Resamples scanned page onto original canvas.
+- **Options**:
+  - `model` (`'similarity'` | `'affine'` | `'homography'`, default: `'similarity'`): Geometric model.
+  - `workingSize` (default: 1400): Longest dimension for feature matching.
+  - `coarseSize` (default: 512): Initial coarse sweep resolution.
+  - `maxFeatures` (default: 1200): ORB keypoint cap per image.
+  - `ransacThreshold` (default: 3.0): Inlier reprojection error bound in px.
+  - `minInliers` (default: 12): Minimum inliers needed to trust feature stage.
+  - `interpolation` (`'bilinear'` | `'bicubic'` | `'nearest'`): Resampling kernel.
+  - `output` (`'png'` | `'jpeg'` | `'none'`): Encoded output format.
 
-    Caller->>Facade: compareRegions(original, aligned, regions)
-    Facade->>Diff: Forward to compareRegions()
-    Diff->>Ink: Apply Dilation & Measure Ink
-    Diff-->>Facade: Return RegionReport[]
-    Facade-->>Caller: Return RegionReport[]
-```
+#### `alignPages(pages, options?: AlignPagesOptions): Promise<AlignedPage[]>`
+Multi-page document batch alignment handler.
+
+---
+
+### 2. Diffing & Change Detection (Delegates to [`@scanmate/diff`](../diff))
+
+#### `compareRegions(original, aligned, regions, options?: RegionOptions): RegionReport[]`
+Evaluates form fields to check if signatures or checkboxes were filled.
+- **Options**:
+  - `tolerance` (default: 2): Morphological dilation radius in pixels.
+  - `threshold` (default: 0.02): Added ink ratio for `filled: true`.
+
+#### `diffDocument(original, aligned, regions?, options?: RegionOptions): DocumentDiff`
+Computes whole-page and per-region ink addition/subtraction metrics in one pass.
+
+#### `renderDiff(original, aligned, options?: RegionOptions): Raster`
+Renders 4-color RGBA visual overlay (Red = scan additions, Blue = template deletions, Grey = matched ink).
+
+#### `diffPage(options: DiffOptions): Promise<PageDiff>`
+Full page change detection isolating unexpected handwritten edits via 2-pass connected component analysis.
+
+---
+
+### 3. Kernel & Pixel Operations (Delegates to [`@scanmate/ink`](../ink))
+
+#### `decodeImage(buffer, options?: DecodeOptions): Promise<Raster>`
+Decodes image bytes to RGBA `Raster` via `sharp`.
+- **Options**: `pageNumber` (for multi-page TIFF), `maxWidth`, `maxHeight`.
+
+#### `encodeImage(raster, options?: EncodeOptions): Promise<Uint8Array>`
+Encodes RGBA `Raster` to PNG/JPEG bytes via `sharp`.
+- **Options**: `format` (`'png'`, `'jpeg'`, `'webp'`, `'avif'`), `quality` (1-100), `compression` (0-9).
+
+#### `inkMap(gray, options?: InkOptions): GrayImage`
+Performs background division ($I_{ink} = 1 - I / I_{bg}$).
+- **Options**: `blurRadius` (default: 25), `invert` (default: true).
+
+#### `warpRaster(raster, output, invMatrix, options?: WarpOptions): void`
+Resamples input `Raster` using inverse 3x3 homography matrix.
+- **Options**: `interpolation` (`'bilinear'`, `'bicubic'`, `'nearest'`), `background` (`RGBA`).
+
+---
+
+### 4. PDF Extraction & Inspection (Delegates to [`@scanmate/extract`](../extract))
+
+#### `extractPair(options: ExtractPairOptions): Promise<PairedDocument>`
+Parses, auto-detects scan DPI, and renders paired original/scanned PDF pages.
+- **Options**: `original`, `scanned`, `dpi` (`'native'` or fixed number), `pageSelection`.
+
+#### `inspectPage(pdf, pageIndex): Promise<PageMetadata>`
+Inspects PDF operator streams and classifies page as `'scanned'`, `'born-digital'`, or `'mixed'`.
 
 ---
 

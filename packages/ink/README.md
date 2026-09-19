@@ -2,7 +2,7 @@
 
 > The pixel and geometry kernel powering ScanMate's document processing pipeline.
 
-`@scanmate/ink` is a high-performance, zero-native-runtime-dependency (except high-speed libvips image codecs via `sharp`) image processing kernel for node environments. It handles illumination normalization, background division, grayscale-to-ink conversion, high-precision bilinear/bicubic resampling, 3x3 homography matrix transforms, FFT frequency analysis, and synthetic document creation.
+`@scanmate/ink` is a high-performance, zero-native-runtime-dependency (except high-speed libvips image codecs via `sharp`) image processing kernel for Node.js environments. It handles illumination normalization, background division, grayscale-to-ink conversion, high-precision bilinear/bicubic resampling, 3x3 homography matrix transforms, FFT frequency analysis, and synthetic document creation.
 
 ---
 
@@ -48,8 +48,6 @@ console.log(`Scan size: ${meta.width}x${meta.height}, format: ${meta.format}`)
 const raster = await decodeImage(await readFile('scan.jpg'))
 console.log(`Raster length: ${raster.data.length} bytes (width: ${raster.width}, height: ${raster.height})`)
 
-// Process raster... (e.g. normalize ink, warp)
-
 // Encode back to PNG or JPEG
 const pngBytes = await encodeImage(raster, { format: 'png' })
 await writeFile('output.png', pngBytes)
@@ -57,48 +55,12 @@ await writeFile('output.png', pngBytes)
 
 ### 2. Illumination Normalization (`inkMap`)
 
-Shadows, uneven lighting, and paper yellowing cause raw grayscale values to vary across a scanned document. `inkMap` divides the image by a coarse background estimate and inverts the result, yielding an ink density array where blank paper is near 0.0 and printed ink is near 1.0.
-
 ```ts
 import { decodeImage, inkMap, toGrayscale } from '@scanmate/ink'
 
 const raster = await decodeImage(scannedBuffer)
-
-// Convert RGBA to Float32 grayscale (0.0 to 1.0)
 const gray = toGrayscale(raster)
-
-// Convert grayscale to ink map (background normalization)
 const ink = inkMap(gray, { blurRadius: 25 })
-// ink.data is Float32Array where 0 = clean paper, 1 = dark ink
-```
-
-### 3. Measuring Page Skew (`estimateSkew`)
-
-```ts
-import { estimateSkew, inkMap, toGrayscale } from '@scanmate/ink'
-
-const gray = toGrayscale(raster)
-const ink = inkMap(gray)
-
-// Estimate page skew angle using projection histograms
-const skewDeg = estimateSkew(ink, { maxSkewDeg: 10, stepDeg: 0.1 })
-console.log(`Detected skew: ${skewDeg.toFixed(2)} degrees`)
-```
-
-### 4. Resampling & Warping (`warpRaster`)
-
-```ts
-import { createRaster, invert, translation, warpRaster } from '@scanmate/ink'
-
-// Define 3x3 homography matrix (e.g. shift 50px right, 30px down)
-const matrix = translation(50, 30)
-const invMatrix = invert(matrix)!
-
-// Prepare output canvas
-const output = createRaster(1000, 1400)
-
-// Perform inverse mapping warp
-warpRaster(sourceRaster, output, invMatrix, { interpolation: 'bilinear' })
 ```
 
 ---
@@ -130,8 +92,6 @@ flowchart TD
 
 ### 2. Resampling & Image Warping Workflow
 
-Forward mapping (pushing source pixels into destination coordinates) produces pinholes and moiré artifacts when images are rotated or expanded. `@scanmate/ink` uses **inverse mapping**: for each pixel in the target canvas, it multiplies by the inverse 3x3 transformation matrix $H^{-1}$ to look back into the source image.
-
 ```mermaid
 sequenceDiagram
     autonumber
@@ -158,47 +118,265 @@ sequenceDiagram
 
 ---
 
-### 3. Skew Estimation via Projection Histograms
+## Comprehensive API Reference
 
-Text pages exhibit strong horizontal line structure. When a page is perfectly level ($0^\circ$), horizontal line sums of ink density produce a comb of tall spikes separated by zero-ink gaps between text rows. When the page is tilted, text lines smear across multiple row bins.
+### 1. Image Data Structures & Constructors
 
-$$\text{Variance}(\theta) = \operatorname{Var}\left( \sum_{x} I_{\text{ink}}(x, y \cos\theta - x \sin\theta) \right)$$
+#### `createRaster(width: number, height: number, data?: Uint8Array): Raster`
+Creates an 8-bit RGBA image buffer object.
+- **Parameters**:
+  - `width`: Image width in pixels.
+  - `height`: Image height in pixels.
+  - `data` *(optional)*: `Uint8Array` of size `width * height * 4`. If omitted, zeroed buffer is allocated.
+- **Returns**: `Raster` object (`{ width, height, data }`).
 
-`estimateSkew` evaluates projection variance across candidate angles $\theta \in [-\theta_{max}, \theta_{max}]$ and identifies the peak angle.
+#### `createGray(width: number, height: number, data?: Float32Array): GrayImage`
+Creates a 32-bit single-channel floating point image buffer object (values $0.0$ to $1.0$).
+- **Parameters**:
+  - `width`: Width in pixels.
+  - `height`: Height in pixels.
+  - `data` *(optional)*: `Float32Array` of size `width * height`.
+- **Returns**: `GrayImage` object (`{ width, height, data }`).
 
-```mermaid
-flowchart LR
-    A["Ink Map"] --> B["Rotate / Sample at candidate angle θ"]
-    B --> C["Sum ink across horizontal rows<br/>(Projection Histogram)"]
-    C --> D["Compute histogram variance Var(θ)"]
-    D --> E{"Peak Variance reached?"}
-    E -- No --> B
-    E -- Yes --> F["Optimal Skew Angle θ_opt"]
-```
+#### `createBinary(width: number, height: number, data?: Uint8Array): BinaryImage`
+Creates a 1-byte-per-pixel binary image ($0$ or $255$).
+- **Parameters**:
+  - `width`: Width in pixels.
+  - `height`: Height in pixels.
+  - `data` *(optional)*: `Uint8Array` of size `width * height`.
+- **Returns**: `BinaryImage` object (`{ width, height, data }`).
+
+#### `cloneRaster(raster: Raster): Raster`
+Performs a deep copy of a `Raster` object.
+
+#### `isRaster(val: unknown): val is Raster`
+Type-guard checking if an object conforms to the `Raster` interface.
 
 ---
 
-## API Reference Overview
+### 2. Codec & File I/O (`sharp` / libvips)
 
-### Image Structures & Codec
-- **`Raster`**: Raw 8-bit RGBA image object (`{ width, height, data: Uint8Array }`).
-- **`GrayImage`**: High-precision 32-bit float grayscale image (`{ width, height, data: Float32Array }`).
-- **`decodeImage(buffer, options?)`**: Decodes buffer to `Raster` asynchronously via `sharp`.
-- **`encodeImage(raster, options?)`**: Encodes `Raster` to PNG, JPEG, or WebP bytes asynchronously.
+#### `decodeImage(buffer: ImageInput, options?: DecodeOptions): Promise<Raster>`
+Decodes an image file buffer into an 8-bit RGBA `Raster`. Supports PNG, JPEG, TIFF, WebP, AVIF, and HEIF formats, honoring EXIF orientation.
+- **Parameters**:
+  - `buffer`: `Buffer`, `Uint8Array`, or `ArrayBuffer` containing encoded image file bytes.
+  - `options` *(optional)*:
+    - `pageNumber` *(default: 0)*: Zero-based page index for multi-page TIFF images.
+    - `maxWidth` *(optional)*: Downscale long edge during decoding if image exceeds this limit.
+    - `maxHeight` *(optional)*: Max height bound for decoder downscaling.
+- **Returns**: `Promise<Raster>`
 
-### Ink Processing
-- **`toGrayscale(raster)`**: Converts RGBA `Raster` to `GrayImage`.
-- **`inkMap(gray, options?)`**: Performs background division and returns Float32 ink density map.
-- **`otsuThreshold(gray)`**: Computes optimal global threshold using Otsu's method.
-- **`binarize(gray, threshold?)`**: Converts continuous grayscale to 0/255 binary image.
-- **`dilate(binary, radius)`**: Morphological dilation to expand ink regions.
+#### `encodeImage(raster: Raster, options?: EncodeOptions): Promise<Uint8Array>`
+Encodes an 8-bit RGBA `Raster` to compressed file bytes.
+- **Parameters**:
+  - `raster`: Input `Raster` object.
+  - `options` *(optional)*:
+    - `format` *(default: `'png'`)*: Output encoding format (`'png'`, `'jpeg'`, `'webp'`, `'avif'`).
+    - `quality` *(default: 80)*: Compression quality factor (1-100) for lossy formats (`jpeg`, `webp`, `avif`).
+    - `compression` *(default: 6)*: PNG compression level (0-9).
+- **Returns**: `Promise<Uint8Array>`
 
-### Geometry & Matrix Math
-- **`Matrix3`**: $3 \times 3$ column-major matrix array representation (`[m00, m10, m20, m01, m11, m21, m02, m12, m22]`).
-- **`invert(matrix)`**: Computes $3 \times 3$ matrix inverse (returns `null` if singular).
-- **`multiply(a, b)`**: Matrix multiplication $A \cdot B$.
-- **`decompose(matrix)`**: Extracts scale, rotation angle, translation, and shear from matrix.
-- **`similarity(scale, rotationDeg, tx, ty)`**: Constructs a 4-DOF similarity matrix.
+#### `readImageMetadata(buffer: ImageInput): Promise<ImageMetadata>`
+Extracts metadata without full pixel decoding.
+- **Parameters**: `buffer` (`Buffer` | `Uint8Array`).
+- **Returns**: `Promise<{ width: number, height: number, format: string, channels: number, orientation?: number }>`
+
+#### `countPages(buffer: ImageInput): Promise<number>`
+Counts total pages inside multi-page document images (e.g. TIFF).
+
+---
+
+### 3. Ink Normalization & Processing
+
+#### `toGrayscale(raster: Raster): GrayImage`
+Converts 8-bit RGBA `Raster` to Float32 `GrayImage` using NTSC luminance weights ($Y = 0.299R + 0.587G + 0.114B$).
+
+#### `inkMap(gray: GrayImage, options?: InkOptions): GrayImage`
+Performs background division to produce an illumination-invariant ink density map ($0.0 = \text{paper}$, $1.0 = \text{dark ink}$).
+- **Parameters**:
+  - `gray`: Input Float32 `GrayImage`.
+  - `options` *(optional)*:
+    - `blurRadius` *(default: 25)*: Radius in pixels for background estimation blur.
+    - `invert` *(default: true)*: If `true`, returns ink density (paper near 0, ink near 1). If `false`, returns normalized reflectance.
+    - `clipAreaBoxMean` *(default: false)*: Accelerates background estimation on large documents.
+- **Returns**: Float32 `GrayImage`.
+
+#### `otsuThreshold(gray: GrayImage): number`
+Computes the optimal global threshold using Otsu's variance maximization method.
+- **Returns**: Float threshold value (0.0 to 1.0).
+
+#### `binarize(gray: GrayImage, threshold?: number): BinaryImage`
+Thresholds Float32 `GrayImage` to a `BinaryImage` ($0$ or $255$).
+- **Options/Parameters**: `threshold` (default: calculated via `otsuThreshold`).
+
+#### `dilate(binary: BinaryImage, radius: number): BinaryImage`
+Applies morphological dilation with square kernel of specified `radius` pixels to expand binary ink regions.
+
+#### `boxBlur(gray: GrayImage, radius: number): GrayImage`
+Applies $O(1)$ per-pixel sliding box blur to a `GrayImage` using an integral image.
+
+#### `boxBlurRaster(raster: Raster, radius: number): Raster`
+Applies box blur directly to an 8-bit RGBA `Raster`.
+
+#### `integralImage(gray: GrayImage): Float64Array`
+Computes 2D cumulative sum table (integral image) for $O(1)$ arbitrary rectangle area sums.
+
+#### `coverage(binary: BinaryImage): number`
+Calculates the fraction of non-zero ink pixels in a binary image (0.0 to 1.0).
+
+#### `grayToRaster(gray: GrayImage): Raster`
+Converts Float32 `GrayImage` ($0..1$) back to an 8-bit RGBA `Raster`.
+
+---
+
+### 4. Geometric Resampling & Warping
+
+#### `warpRaster(raster: Raster, output: Raster, invMatrix: Matrix3, options?: WarpOptions): void`
+Resamples input `Raster` onto `output` canvas using inverse transformation matrix $H^{-1}$.
+- **Parameters**:
+  - `raster`: Source RGBA `Raster`.
+  - `output`: Destination target `Raster`.
+  - `invMatrix`: Inverse $3 \times 3$ transformation matrix ($H^{-1}$).
+  - `options` *(optional)*:
+    - `interpolation` *(default: `'bilinear'`)*: Interpolation kernel (`'nearest'`, `'bilinear'`, `'bicubic'`).
+    - `background` *(default: `[255, 255, 255, 255]`)*: RGBA color array for pixels mapping outside source bounds.
+
+#### `warpGray(gray: GrayImage, output: GrayImage, invMatrix: Matrix3, options?: WarpOptions): void`
+Resamples Float32 `GrayImage` onto target Float32 output canvas.
+
+#### `sampleGrayBilinear(gray: GrayImage, x: number, y: number): number`
+Samples sub-pixel value at continuous coordinate $(x, y)$ using bilinear interpolation.
+
+#### `resizeGray(gray: GrayImage, newWidth: number, newHeight: number): GrayImage`
+Resizes `GrayImage` to arbitrary new dimensions using pre-filtered downscaling/upscaling.
+
+#### `downscaleGray(gray: GrayImage, factor: number): GrayImage`
+Downscales `GrayImage` by an integer `factor` using area-box averaging to avoid moiré aliasing.
+
+---
+
+### 5. Matrix Mathematics (`Matrix3`)
+
+Represented as a 9-element column-major flat array: `[m00, m10, m20, m01, m11, m21, m02, m12, m22]`.
+
+#### `IDENTITY: Matrix3`
+Constant $3 \times 3$ Identity matrix (`[1,0,0, 0,1,0, 0,0,1]`).
+
+#### `multiply(a: Matrix3, b: Matrix3): Matrix3`
+Multiplies two $3 \times 3$ matrices ($A \cdot B$).
+
+#### `invert(matrix: Matrix3): Matrix3 | null`
+Calculates inverse $H^{-1}$. Returns `null` if singular ($\det = 0$).
+
+#### `determinant(matrix: Matrix3): number`
+Calculates matrix determinant.
+
+#### `similarity(scale: number, rotationDeg: number, tx: number, ty: number): Matrix3`
+Constructs a 4-DOF Similarity transformation matrix.
+
+#### `translation(tx: number, ty: number): Matrix3`
+Constructs a translation matrix.
+
+#### `scaling(sx: number, sy?: number): Matrix3`
+Constructs a scaling matrix.
+
+#### `decompose(matrix: Matrix3): TransformSummary`
+Decomposes matrix into `{ scaleX, scaleY, rotationDeg, shear, translateX, translateY }`.
+
+#### `applyPoint(matrix: Matrix3, point: Point): Point`
+Transforms point $(x, y)$ using homography matrix: $[x', y', w]^T = M \cdot [x, y, 1]^T \implies (x'/w, y'/w)$.
+
+#### `mapRectCorners(matrix: Matrix3, rect: Rect): Point[]`
+Transforms the 4 corners of a rectangle `Rect`.
+
+#### `rebase(matrix: Matrix3, fromCanvas: Size, toCanvas: Size): Matrix3`
+Adjusts transformation matrix when images are rescaled to different canvas sizes.
+
+#### `isPlausible(matrix: Matrix3, maxScaleRatio?: number): boolean`
+Checks if matrix represents a physically plausible scan transformation (prevents degenerate zero-area warps).
+
+#### `reprojectionError(matrix: Matrix3, points: PointMatch[]): number`
+Calculates root-mean-square (RMS) reprojection distance across point correspondences.
+
+#### `solve(a: number[], b: number[]): number[] | null`
+Solves linear system $A \cdot x = B$ using Gaussian elimination.
+
+#### `jacobiEigen(a: number[]): { eigenvalues: number[], eigenvectors: number[] }`
+Computes eigenvalues and eigenvectors of a symmetric $3 \times 3$ matrix via Jacobi rotations.
+
+#### `smallestEigenvector(a: number[]): number[]`
+Finds the eigenvector corresponding to the smallest eigenvalue (used for SVD homography fitting).
+
+---
+
+### 6. Measurement & Spectral Analysis
+
+#### `correlation(a: GrayImage, b: GrayImage): number`
+Computes normalized Pearson correlation coefficient ($-1.0$ to $1.0$) between two equal-sized gray images.
+
+#### `intersectionOverUnion(a: BinaryImage, b: BinaryImage): number`
+Calculates Jaccard index (IoU) between binary masks.
+
+#### `mean(gray: GrayImage): number`
+Calculates mean pixel value.
+
+#### `contentExtent(ink: GrayImage, options?: { threshold?: number }): ContentExtent`
+Detects bounding box enclosing printable content: returns `{ minX, minY, maxX, maxY, width, height }`.
+
+#### `estimateSkew(ink: GrayImage, options?: SkewOptions): number`
+Estimates page rotation angle in degrees using projection histogram comb variance.
+- **`options`**:
+  - `maxSkewDeg` *(default: 12)*: Maximum search angle range ($-\theta_{max}..\theta_{max}$).
+  - `stepDeg` *(default: 0.2)*: Angular sweep step resolution.
+
+#### `profileSharpness(gray: GrayImage): number`
+Measures image blur/sharpness using Laplacian variance.
+
+---
+
+### 7. Frequency Analysis & PRNG
+
+#### `fft1d(real: Float64Array, imag: Float64Array, inverse?: boolean): void`
+Cooley-Tukey 1D Fast Fourier Transform in-place.
+
+#### `fft2d(real: Float64Array, imag: Float64Array, inverse?: boolean): void`
+Row-column 2D Fast Fourier Transform in-place for power-of-two dimensions.
+
+#### `isPowerOfTwo(n: number): boolean` / `nextPowerOfTwo(n: number): number`
+Bitwise helpers for FFT dimension padding.
+
+#### `createRandom(seed?: number): () => number`
+Creates a deterministic pseudo-random number generator function (PCG / Mulberry32).
+
+#### `gaussian(random: () => number, mean?: number, stdDev?: number): number`
+Generates Gaussian-distributed random values using Box-Muller transform.
+
+---
+
+### 8. Synthetic Document Fixtures & Drawing Primitives
+
+#### `createSyntheticDocument(options?: DocumentOptions): SyntheticDocument`
+Generates synthetic printed document template.
+- **Options**: `width` (default 850), `height` (default 1100), `text`, `lines`, `margin`.
+
+#### `simulateScan(raster: Raster, options?: ScanOptions): SimulatedScan`
+Simulates scanner degradation (rotation, scaling, noise, shadow blur, translation).
+- **Options**: `rotationDeg`, `scale`, `tx`, `ty`, `noise`, `blur`.
+
+#### `drawSignature(raster: Raster, rect: Rect, seed?: number): void`
+Renders synthetic handwritten signature inside specified rectangle.
+
+#### `drawTick(raster: Raster, center: Point, size?: number): void`
+Renders a checkmark tick inside a checkbox.
+
+#### `drawLine(raster: Raster, x1: number, y1: number, x2: number, y2: number, color: Rgba): void`
+Bresenham line drawing algorithm.
+
+#### `fillRect(raster: Raster, rect: Rect, color: Rgba): void`
+Fills rectangle on RGBA `Raster`.
+
+#### `strokeRect(raster: Raster, rect: Rect, color: Rgba, thickness?: number): void`
+Strokes rectangle boundary on RGBA `Raster`.
 
 ---
 

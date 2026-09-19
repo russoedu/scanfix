@@ -31,65 +31,18 @@ yarn add @scanmate/diff @scanmate/ink
 
 ---
 
-## Usage Examples
-
-### 1. Form Region & Signature Verification (`compareRegions`)
+## Quick Start
 
 ```ts
 import { compareRegions } from '@scanmate/diff'
 import { decodeImage } from '@scanmate/ink'
 
 const original = await decodeImage(originalBuffer)
-const aligned = await decodeImage(alignedBuffer) // Must be aligned via @scanmate/align!
+const aligned = await decodeImage(alignedBuffer)
 
-// Define regions in original PDF canvas coordinates
 const reports = compareRegions(original, aligned, [
   { id: 'signature', rect: { x: 100, y: 750, width: 350, height: 80 } },
-  { id: 'consent_checkbox', rect: { x: 100, y: 650, width: 20, height: 20 }, threshold: 0.05 },
 ])
-
-for (const report of reports) {
-  console.log(`Region [${report.id}]: filled = ${report.filled}, added ink ratio = ${(report.added * 100).toFixed(2)}%`)
-}
-```
-
-### 2. Generating Visual Difference Overlays (`renderDiff`)
-
-```ts
-import { renderDiff } from '@scanmate/diff'
-import { encodeImage } from '@scanmate/ink'
-import { writeFile } from 'node:fs/promises'
-
-// Render color-coded difference image
-const diffRaster = renderDiff(original, aligned, {
-  addedColor: [239, 68, 68, 255],   // Red for scan additions (e.g. signature)
-  removedColor: [59, 130, 246, 255], // Blue for scan deletions
-  matchedColor: [156, 163, 175, 255],// Grey for matching template ink
-})
-
-const pngBytes = await encodeImage(diffRaster, { format: 'png' })
-await writeFile('diff_overlay.png', pngBytes)
-```
-
-### 3. Detecting Unexpected Handwritten Modifications (`diffPage`)
-
-```ts
-import { diffPage } from '@scanmate/diff'
-
-// Detect expected form entries and highlight unexpected extra marks
-const pageDiff = await diffPage({
-  page: 1,
-  original,
-  aligned,
-  expectedRegions: [
-    { id: 'client_signature', x: 100, y: 800, width: 300, height: 60 },
-  ],
-  minChangePixels: 20, // Ignore tiny dust spots smaller than 20 px
-})
-
-console.log('Expected Regions Result:', pageDiff.expected)
-console.log('Unexpected Changes Found:', pageDiff.unexpected)
-// pageDiff.unexpected contains bounding boxes of unauthorized edits or marginal notes
 ```
 
 ---
@@ -142,24 +95,84 @@ sequenceDiagram
 
 ---
 
-### 3. Region Report Metrics
+## Comprehensive API Reference
 
-When evaluating a bounding box $\mathcal{R}$, `@scanmate/diff` computes the following ratios:
+### 1. Region Comparison & Form Verification
 
-- **`added`**: Fraction of region area containing ink in scan that was not in original template:
-  $$\text{added} = \frac{\sum_{(x,y) \in \mathcal{R}} \text{Ink}_{added}(x,y)}{|\mathcal{R}|}$$
-- **`removed`**: Fraction of original template ink missing in scan.
-- **`filled`**: Boolean flag set to `true` when $\text{added} \ge \text{threshold}$ (default 2% of region area).
+#### `compareRegions(original: Raster, aligned: Raster, regions: Region[], options?: RegionOptions): RegionReport[]`
+Evaluates specific rectangular form regions to check if signatures, checkboxes, or text boxes were filled in.
+- **Parameters**:
+  - `original`: Original template `Raster`.
+  - `aligned`: Aligned scan `Raster` (must match `original` canvas width/height).
+  - `regions`: Array of `Region` objects (`{ id: string, rect: Rect, threshold?: number }`).
+  - `options` *(optional)*: `RegionOptions` object (see breakdown below).
+- **Returns**: Array of `RegionReport` (`{ id, rect, filled, score, added, removed, addedPixels, totalPixels }`).
+
+##### Detailed Options Explanation (`RegionOptions`):
+
+| Option | Type | Default | Description & Impact |
+|---|---|---|---|
+| `tolerance` | `number` | `2` | Morphological dilation radius in pixels applied to original ink before subtraction. Absorbs minor sub-pixel rendering shifts. |
+| `threshold` | `number` | `0.02` | Ink ratio threshold (2% of region area) above which `filled` is set to `true`. |
+| `addedColor` | `Rgba` | `[239, 68, 68, 255]` | RGBA color (Red) for added ink in diff overlays. |
+| `removedColor` | `Rgba` | `[59, 130, 246, 255]` | RGBA color (Blue) for removed ink in diff overlays. |
+| `matchedColor` | `Rgba` | `[156, 163, 175, 255]`| RGBA color (Grey) for matching ink in diff overlays. |
 
 ---
 
-## API Reference Overview
+#### `diffDocument(original: Raster, aligned: Raster, regions?: Region[], options?: RegionOptions): DocumentDiff`
+Computes whole-page added/removed ink statistics plus per-region details in a single efficient pass.
+- **Returns**: `DocumentDiff` (`{ overallAdded, overallRemoved, overallAddedPixels, overallTotalPixels, regions: RegionReport[] }`).
 
-### Core Functions
-- **`compareRegions(original, aligned, regions, options?)`**: Returns an array of `RegionReport` objects for specified bounding boxes.
-- **`diffDocument(original, aligned, regions?, options?)`**: Computes whole-page and per-region added/removed ink metrics in a single pass.
-- **`renderDiff(original, aligned, options?)`**: Creates a color-coded RGBA `Raster` overlay.
-- **`diffPage(options)`**: Executes full expected region matching + 2-pass connected components analysis for unexpected change detection.
+#### `renderDiff(original: Raster, aligned: Raster, options?: RegionOptions): Raster`
+Generates a 4-color RGBA overlay `Raster` suitable for visual inspection (Red = scan additions, Blue = template deletions, Grey = matched ink, White = paper background).
+
+---
+
+### 2. High-Level Page & Document Diffing
+
+#### `diffPage(options: DiffOptions): Promise<PageDiff>`
+Full change detection pipeline for a single page, matching expected form regions and isolating unexpected handwritten edits using connected component analysis.
+- **Parameters (`DiffOptions`)**:
+  - `page`: Page number index.
+  - `original`: Original template `Raster`.
+  - `aligned`: Aligned scan `Raster`.
+  - `expectedRegions` *(optional)*: Array of expected form field bounding boxes.
+  - `minChangePixels` *(default: 20)*: Minimum area in pixels to consider a connected component a valid unexpected change box.
+  - `tolerance` *(default: 2)*: Dilation tolerance radius.
+  - `addedColor` / `removedColor`: Visual overlay colors.
+- **Returns**: `Promise<PageDiff>` (`{ page, expected: ExpectedResult[], unexpected: UnexpectedChange[], overlay: Raster }`).
+
+#### `diffPages(alignedPages: AlignedPage[], expectedRegions: ExpectedRegion[], options?: DiffOptions): Promise<PageDiff[]>`
+Batch page diffing for multi-page document collections.
+
+---
+
+### 3. Pipeline Building Blocks & Connected Components
+
+#### `buildMasks(original: Raster, aligned: Raster, options?: RegionOptions): Masks`
+Computes intermediate Float32 ink maps and binary addition/subtraction masks.
+- **Returns**: `Masks` (`{ originalInk, alignedInk, addedMask, removedMask, width, height }`).
+
+#### `measureRegion(masks: Masks, region: Region, options?: RegionOptions): RegionReport`
+Measures ink statistics inside a single `Region` using pre-computed `Masks`.
+
+#### `paintOverlay(masks: Masks, options?: RegionOptions): Raster`
+Paints RGBA overlay `Raster` from pre-computed `Masks`.
+
+#### `connectedComponents(binary: BinaryImage, options?: ComponentOptions): Component[]`
+Executes 2-pass 8-connectivity Connected Component Analysis (CCL) to extract disjoint pixel blobs.
+- **Options**:
+  - `minPixels` *(default: 1)*: Ignore components with pixel count below this limit.
+- **Returns**: Array of `Component` (`{ id, minX, minY, maxX, maxY, pixelCount, width, height }`).
+
+#### `mergeBoxes(boxes: MergedBox[], options?: MergeOptions): MergedBox[]`
+Consolidates overlapping or closely adjacent bounding boxes.
+- **Options**:
+  - `maxGap` *(default: 15)*: Maximum distance in pixels between box boundaries to trigger a box merge.
+
+#### `annotateOverlay(overlay: Raster, annotations: Annotation[], options?: LabelOptions): Raster`
+Draws bounding box rectangles and text labels onto a diff overlay `Raster`.
 
 ---
 
