@@ -29,6 +29,9 @@
     },
     {
       "path": "./packages/ocr"
+    },
+    {
+      "path": "./packages/find"
     }
   ],
   "compilerOptions": {}
