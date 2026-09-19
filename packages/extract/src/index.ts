@@ -10,7 +10,7 @@
  * ```
  *
  * Every page carries its metadata: size and rotation, whether it is a scan or
- * born-digital, the text layer when there is one, and the real resolution of a
+ * born-digital, the text layer and where each run of it sits, and the real resolution of a
  * scanned page. By default each pair is rendered at the scan's own resolution,
  * which is what makes the two sides directly comparable.
  *
@@ -18,10 +18,13 @@
  * nothing to install on the host - does the drawing.
  */
 
+export { inspectDocument } from './document-inspection'
+export type { DocumentInfo, DocumentInspection, InspectedPage, InspectOptions } from './document-inspection'
 export { extractPages, extractPageStream, extractPair, extractPairStream } from './page-extraction'
 export type { ExtractedPage, ExtractOptions, ExtractPairOptions, PagePairing, PageSelection, PairedDocument, PairedPage } from './page-extraction'
 
 export type { EmbeddedImage, PageKind, PageMetadata } from './page-inspection'
+export type { TextItem } from './text-layer'
 export type { DpiChoice } from './page-rendering'
 export type { PdfInput } from './pdf-document'
 
@@ -33,6 +36,8 @@ export { classifyPage, inspectPage, SCAN_COVERAGE } from './page-inspection'
 export { DEFAULT_DPI_LIMITS, nativeDpi, pageDpi, pairDpi, renderPage } from './page-rendering'
 export type { DpiLimits, RenderOptions } from './page-rendering'
 export { planPairs, selectPages } from './page-extraction'
+export { readTextLayer } from './text-layer'
+export type { TextLayer } from './text-layer'
 
 // --- Synthetic PDFs, for tests and deployment smoke checks ---
 

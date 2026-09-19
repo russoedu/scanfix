@@ -38,7 +38,7 @@ export async function * extractPageStream (pdf: PdfInput, options: ExtractOption
       const page = await opened.document.getPage(number)
       try {
         const inspected = await inspectPage(page)
-        const metadata = includeText ? inspected : { ...inspected, text: null }
+        const metadata = includeText ? inspected : { ...inspected, text: null, textItems: [] }
         const renderDpi = pageDpi(metadata, dpi, { fallbackDpi, minDpi, maxDpi })
         const image = await renderPage(page, { dpi: renderDpi, output, quality, background })
 

@@ -26,7 +26,7 @@ export interface ExtractOptions {
   quality?:     number
   /** Painted under each page, since PDF pages are transparent where nothing is drawn. Default `'white'`. */
   background?:  string
-  /** Read each page's text layer into `metadata.text`. Default `true`. */
+  /** Read each page's text layer into `metadata.text` and `metadata.textItems`. Default `true`. */
   includeText?: boolean
   /** Called before and after each page. */
   onProgress?:  ProgressCallback

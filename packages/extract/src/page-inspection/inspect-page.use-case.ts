@@ -1,6 +1,7 @@
 import { OPS } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import type { PDFPageProxy } from 'pdfjs-dist/legacy/build/pdf.mjs'
 
+import { readTextLayer } from '../text-layer'
 import type { EmbeddedImage, PageMetadata } from './page-metadata.contract'
 import { classifyPage, SCAN_COVERAGE } from './page-kind.policy'
 
@@ -32,14 +33,7 @@ export async function inspectPage (page: PDFPageProxy): Promise<PageMetadata> {
   const pointWidth = x1 - x0
   const pointHeight = y1 - y0
 
-  const content = await page.getTextContent()
-  let text = ''
-  for (const item of content.items) {
-    if (!('str' in item)) continue
-    text += item.str
-    if (item.hasEOL) text += '\n'
-  }
-  text = text.trim()
+  const { text, items: textItems } = await readTextLayer(page)
 
   const operators = await page.getOperatorList()
   const images: EmbeddedImage[] = []
@@ -104,6 +98,7 @@ export async function inspectPage (page: PDFPageProxy): Promise<PageMetadata> {
     imageCoverage,
     hasTextLayer:   characterCount > 0,
     text:           characterCount > 0 ? text : null,
+    textItems,
     characterCount,
     embeddedImages: images,
     effectiveDpi:   effectiveDpi(images, imageCoverage),

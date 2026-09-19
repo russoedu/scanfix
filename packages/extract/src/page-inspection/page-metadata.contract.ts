@@ -1,5 +1,7 @@
 import type { Rect } from '@scanmate/ink'
 
+import type { TextItem } from '../text-layer'
+
 /**
  * What a PDF page says about itself, without anything being rendered.
  *
@@ -57,6 +59,12 @@ export interface PageMetadata {
   hasTextLayer:   boolean
   /** The page's own text, with line ends as newlines, or `null` when there is none. */
   text:           string | null
+  /**
+   * Every run of the text layer, placed on the page as displayed, in points from
+   * the top-left. Empty when there is no text layer. Where a value was printed -
+   * a total, a signature label - is what regions and searches are built from.
+   */
+  textItems:      TextItem[]
   characterCount: number
   embeddedImages: EmbeddedImage[]
   /**

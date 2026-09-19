@@ -12,6 +12,7 @@ function page (effectiveDpi: number | null): PageMetadata {
     imageCoverage:  effectiveDpi === null ? 0 : 1,
     hasTextLayer:   effectiveDpi === null,
     text:           null,
+    textItems:      [],
     characterCount: 0,
     embeddedImages: [],
     effectiveDpi,

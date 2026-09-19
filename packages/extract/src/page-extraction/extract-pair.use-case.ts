@@ -80,7 +80,7 @@ async function * pairStream (
           const scannedMeta = await inspectPage(scannedPage)
           const metadata = includeText
             ? { original: originalMeta, scanned: scannedMeta }
-            : { original: { ...originalMeta, text: null }, scanned: { ...scannedMeta, text: null } }
+            : { original: { ...originalMeta, text: null, textItems: [] }, scanned: { ...scannedMeta, text: null, textItems: [] } }
 
           const resolution = pairDpi(metadata.original, metadata.scanned, dpi, { fallbackDpi, minDpi, maxDpi })
           const render = { output, quality, background }

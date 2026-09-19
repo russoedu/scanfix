@@ -54,8 +54,9 @@ export async function openPdf (input: PdfInput): Promise<OpenedPdf> {
   if (bytes.byteLength === 0) throw new Error('cannot open an empty PDF')
 
   const task = getDocument({
-    // A copy, always: pdf.js transfers ownership of what it is given.
-    data:                [...bytes],
+    // A copy, always: pdf.js transfers ownership of what it is given. A typed
+    // copy - spread into a plain array, a 5 MB scan is five million numbers.
+    data:                new Uint8Array(bytes),
     standardFontDataUrl: standardFontDirectory(),
     useSystemFonts:      false,
   })
