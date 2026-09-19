@@ -14,11 +14,11 @@ import type { Change, DiffOptions, ExpectedChange, ExpectedResult, PageDiff } fr
  *
  * The overlay is the detection: the original's ink, fattened by a tolerance band,
  * subtracted from the aligned scan, leaves the ink the scan added. What this adds
- * is the reporting. Expected regions are checked by how much of them is new ink;
- * everything else that changed is grouped into regions - labelled, merged across
- * small gaps, filtered below a physical size - and every group that does not sit
- * in an expected region is an unexpected change. The same is done for ink the
- * scan lost.
+ * is the reporting. What changed is grouped into changes - labelled, merged
+ * across small gaps, filtered below a physical size. A change whose ink lies
+ * mostly in an expected region counts toward that region, which is identified
+ * once its changes add up to `minFillArea`; every other change is unexpected.
+ * The same grouping is done for ink the scan lost.
  *
  * Masks are built once per page and read four ways: the overlay, the expected
  * regions, the added changes and the missing ones.
@@ -62,7 +62,7 @@ export async function diffPage (
   const {
     units = 'points',
     tolerance = 2,
-    threshold = 0.02,
+    minFillArea = 2,
     minChangeArea = 1,
     minMissingArea = 4,
     faintInk,
@@ -83,21 +83,6 @@ export async function diffPage (
   const masks = await buildMasks(page.original.raster, page.aligned.raster, ink, tolerance, faintInk)
 
   const regions = expected.map(e => ({ id: e.id, rect: scaleRect(e, toPixels) }))
-  const expectedResults: ExpectedResult[] = regions.map((region, i) => {
-    const report = measureRegion(region, masks, threshold)
-
-    return {
-      id:         region.id,
-      identified: report.filled,
-      x:          expected[i].x,
-      y:          expected[i].y,
-      width:      expected[i].width,
-      height:     expected[i].height,
-      addedInk:   report.added,
-      removedInk: report.removed,
-      score:      report.score,
-    }
-  })
 
   const findChanges = (mask: BinaryImage, minArea: number): MergedBox[] => {
     const components = connectedComponents(mask).filter(c => c.pixels >= 2)
@@ -109,8 +94,26 @@ export async function diffPage (
   }
 
   const added = findChanges(difference(masks.scan, masks.originalDilated), minChangeArea)
-  const outside = added.filter(box => regions.every(r => inkShareInside(box, r.rect, masks) < regionOverlap))
+  const owner = added.map(box => regions.findIndex(r => inkShareInside(box, r.rect, masks) >= regionOverlap))
+  const outside = added.filter((_, i) => owner[i] === -1)
   const lost = findChanges(difference(masks.original, masks.scanDilated), minMissingArea)
+
+  const expectedResults: ExpectedResult[] = regions.map((region, i) => {
+    const addedInk = added.reduce((sum, box, b) => owner[b] === i ? sum + box.pixels * mm2PerPixel : sum, 0)
+    const { removed } = measureRegion(region, masks, 0)
+
+    return {
+      id:         region.id,
+      identified: addedInk >= minFillArea,
+      x:          expected[i].x,
+      y:          expected[i].y,
+      width:      expected[i].width,
+      height:     expected[i].height,
+      addedInk,
+      removedInk: removed * pixelArea(region.rect, masks) * mm2PerPixel,
+      score:      minFillArea > 0 ? Math.min(1, addedInk / minFillArea) : 1,
+    }
+  })
 
   const truncated = outside.length > maxChanges || lost.length > maxChanges
   const toChange = (box: MergedBox): Change => ({
@@ -134,7 +137,7 @@ export async function diffPage (
       ...outside.slice(0, maxChanges).map(box => ({ rect: grow(box, 4), color: UNEXPECTED })),
     ])
 
-  const whole = measureRegion({ id: '__page__', rect: { x: 0, y: 0, width: masks.width, height: masks.height } }, masks, threshold)
+  const whole = measureRegion({ id: '__page__', rect: { x: 0, y: 0, width: masks.width, height: masks.height } }, masks, 0)
   const identified = expectedResults.filter(r => r.identified).length
 
   return {
@@ -187,6 +190,14 @@ function inkShareInside (box: MergedBox, region: Rect, masks: Masks): number {
   // The count here includes isolated pixels the component filter dropped from
   // box.pixels, so it can nudge past one.
   return box.pixels > 0 ? Math.min(1, inside / box.pixels) : 0
+}
+
+/** Pixels of a region that lie on the page - what `measureRegion`'s shares are shares of. */
+function pixelArea (rect: Rect, masks: Masks): number {
+  const width = Math.min(masks.width, Math.ceil(rect.x + rect.width)) - Math.max(0, Math.floor(rect.x))
+  const height = Math.min(masks.height, Math.ceil(rect.y + rect.height)) - Math.max(0, Math.floor(rect.y))
+
+  return Math.max(0, width) * Math.max(0, height)
 }
 
 function scaleRect (rect: Rect, factor: number): Rect {

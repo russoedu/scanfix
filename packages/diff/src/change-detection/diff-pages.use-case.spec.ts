@@ -66,6 +66,26 @@ describe('diffPage', () => {
     expect(diff.summary).toMatchObject({ identified: 1, notIdentified: 1 })
   })
 
+  it('identifies a signature by its ink, however much of a wide box it leaves empty', async () => {
+    // A box the width of the page: the signature covers well under 2% of it,
+    // which a share-of-the-box rule would call empty.
+    const wide = { x: 20, y: SIGNATURE.y - 40, width: 560, height: SIGNATURE.height + 80 }
+    const diff = await diffPage(page(signed()), [expect_('signature', wide)], { output: 'none' })
+    const boxArea = wide.width * wide.height * (25.4 / 72) ** 2
+
+    expect(diff.expected[0].identified).toBe(true)
+    expect(diff.expected[0].addedInk / boxArea).toBeLessThan(0.02)
+    expect(diff.expected[0].score).toBe(1)
+  })
+
+  it('does not identify a region on a speck of dust', async () => {
+    const raster = cloneRaster(FORM.raster)
+    fillRect(raster, { x: SIGNATURE.x + 20, y: SIGNATURE.y + 10, width: 2, height: 2 }, 0)
+    const diff = await diffPage(page(raster), [expect_('signature', SIGNATURE)], { output: 'none' })
+
+    expect(diff.expected[0]).toMatchObject({ identified: false, addedInk: 0 })
+  })
+
   it('reports a mark nobody expected as one merged box, where it was made', async () => {
     const diff = await diffPage(page(signed()), [], { output: 'none' })
 

@@ -27,8 +27,19 @@ export interface DiffOptions {
   units?:          CoordinateUnits
   /** Pixels the original's ink is fattened by before diffing, to absorb sub-pixel misalignment. Default `2`. */
   tolerance?:      number
-  /** Fraction of an expected region that must be new ink for it to count as identified. Default `0.02`. */
-  threshold?:      number
+  /**
+   * New ink an expected region needs to count as identified, in square
+   * millimetres. Default `2`.
+   *
+   * Counted from the region's changes - each already past `minChangeArea`, so
+   * scattered speckle never adds up to a signature - and in physical units, not
+   * as a share of the region: a pen signature is the same few tens of mm2
+   * whether its box is a stamp or the width of the page, and the same mark is
+   * four times the pixels at twice the dpi. A tick is about 5 mm2, initials a
+   * little more; after merging, the largest noise measured on real scans was
+   * 0.85 mm2.
+   */
+  minFillArea?:    number
   /**
    * Smallest change worth reporting, in square millimetres of ink. Default `1`.
    *
@@ -89,11 +100,11 @@ export interface ExpectedResult {
   y:          number
   width:      number
   height:     number
-  /** Fraction of the region that is new ink. */
+  /** New ink in the region's changes, in square millimetres. */
   addedInk:   number
-  /** Fraction of the region whose original ink is gone. */
+  /** Original ink the region lost, in square millimetres. */
   removedInk: number
-  /** `addedInk` as a multiple of the threshold, clamped to `[0, 1]`. */
+  /** `addedInk` as a share of `minFillArea`, clamped to `[0, 1]`. */
   score:      number
 }
 
