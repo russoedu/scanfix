@@ -108,7 +108,7 @@
         "executor": "nx:run-commands",
         "cache": true,
         "options": {
-          "command": "eslint . --cache --ignore-pattern \"apps/**\" --ignore-pattern \"libs/**\" --ignore-pattern \"packages/**\" --ignore-pattern \"python-packages/**\" --ignore-pattern package-lock.json",
+          "command": "eslint . --cache --ignore-pattern \"apps/**\" --ignore-pattern \"libs/**\" --ignore-pattern \"packages/**\" --ignore-pattern \"python-packages/**\" --ignore-pattern \"documentation/**\" --ignore-pattern \"**/*.md\" --ignore-pattern \"**/*.mdx\" --ignore-pattern \"**/*.markdown\" --ignore-pattern \"tmp/**\" --ignore-pattern \"playground-output/**\" --ignore-pattern package-lock.json",
           "cwd": "."
         }
       },

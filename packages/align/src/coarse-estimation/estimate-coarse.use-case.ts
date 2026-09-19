@@ -1,5 +1,5 @@
-import { contentExtent, correlation, downscaleGray, estimateSkew, isPlausible, multiply, rebase, similarity, translation, warpGray } from '@scanmate/ink'
 import type { ContentExtent, GrayImage, Matrix3 } from '@scanmate/ink'
+import { contentExtent, correlation, downscaleGray, estimateSkew, isPlausible, multiply, rebase, similarity, translation, warpGray } from '@scanmate/ink'
 import { phaseCorrelate } from '../phase-correlation'
 
 /**

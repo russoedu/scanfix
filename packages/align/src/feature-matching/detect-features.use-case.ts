@@ -1,5 +1,5 @@
-import { boxBlur, createRandom, gaussian, resizeGray } from '@scanmate/ink'
 import type { GrayImage } from '@scanmate/ink'
+import { boxBlur, createRandom, gaussian, resizeGray } from '@scanmate/ink'
 
 /**
  * FAST corners with steered BRIEF descriptors — an ORB, written out.
