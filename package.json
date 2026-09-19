@@ -23,7 +23,9 @@
     "align:qa": "nx run align:lint && nx run align:test",
     "align:build": "nx run align:build",
     "diff:qa": "nx run diff:lint && nx run diff:test",
-    "diff:build": "nx run diff:build"
+    "diff:build": "nx run diff:build",
+    "extract:qa": "nx run extract:lint && nx run extract:test",
+    "extract:build": "nx run extract:build"
   },
   "private": true,
   "devDependencies": {

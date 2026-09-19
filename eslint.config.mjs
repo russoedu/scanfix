@@ -68,7 +68,7 @@ export default [
   ...mnci({ workspaceRoot: import.meta.dirname }),
   {
     name:  'local/image-kernels',
-    files: ['packages/{ink,align,diff,image-fix}/src/**/*.ts'],
+    files: ['packages/{ink,align,diff,extract,image-fix}/src/**/*.ts'],
     rules: {
       // Every pixel loop in this package is a nested loop, and the cheapest way
       // to skip a pixel is `continue`. The rule wants the inner loop extracted
@@ -77,6 +77,19 @@ export default [
       // not gain: `for y { for x { if (blank) continue } }` is the idiom, not a
       // control-flow tangle. Scoped to the packages that own pixel kernels.
       'unicorn/no-break-in-nested-loop': 'off',
+    },
+  },
+  {
+    name:  'local/compiler-lib-parity',
+    files: ['**/*.{ts,mts,cts}'],
+    rules: {
+      // The rule rewrites `for await` accumulation into Array.fromAsync, which
+      // Node 24 has but TypeScript 6 only declares in the `esnext` lib - and a
+      // published package should not compile against unfinished proposals. With
+      // `lib: es2024` the fixed code fails typecheck, so the fixer and the
+      // compiler cannot both be satisfied. Revisit when TypeScript ships
+      // Array.fromAsync in a finished ES lib.
+      'unicorn/prefer-array-from-async': 'off',
     },
   },
   {

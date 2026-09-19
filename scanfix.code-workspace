@@ -144,6 +144,20 @@
         "script": "diff:build",
         "problemMatcher": [],
         "group": "build"
+      },
+      {
+        "label": "extract: qa",
+        "type": "npm",
+        "script": "extract:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "extract: build",
+        "type": "npm",
+        "script": "extract:build",
+        "problemMatcher": [],
+        "group": "build"
       }
     ]
   },

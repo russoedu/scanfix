@@ -17,16 +17,17 @@ export interface AlignPagesOptions extends AlignOptions {
  * interleaves them and makes each slower; real parallelism needs worker threads,
  * which is a decision for the caller or an orchestrator, not for a library call.
  *
- * Each page's `original` and `scanned` pass through untouched, so the result
- * still carries everything the producer knew - the dpi each side was rendered
- * at, the encoded bytes - alongside the new `aligned`.
+ * Every page passes through untouched with `aligned` added, and the types say
+ * so: whatever else the producer attached - `@scanmate/extract`'s per-page
+ * `metadata`, the dpi each side was rendered at, the encoded bytes - is still
+ * there, and still typed, on the way out.
  */
-export async function alignPages (
-  pages: readonly ScanPage[],
+export async function alignPages<Page extends ScanPage> (
+  pages: readonly Page[],
   options: AlignPagesOptions = {},
-): Promise<Array<AlignedPage<AlignResult>>> {
+): Promise<Array<Page & AlignedPage<AlignResult>>> {
   const { onProgress, ...alignOptions } = options
-  const aligned: Array<AlignedPage<AlignResult>> = []
+  const aligned: Array<Page & AlignedPage<AlignResult>> = []
 
   for (const [position, page] of pages.entries()) {
     const index = position + 1

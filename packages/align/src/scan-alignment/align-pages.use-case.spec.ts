@@ -58,6 +58,14 @@ describe('alignPages', () => {
     expect(events).toEqual([])
   })
 
+  it('keeps whatever else the producer attached to a page, typed', async () => {
+    const page = { ...pair(3, 5), metadata: { source: 'extract' } }
+    const [aligned] = await alignPages([page], { output: 'none' })
+
+    // Compiles only because the extra field survives in the return type.
+    expect(aligned.metadata.source).toBe('extract')
+  }, 45_000)
+
   it('passes alignment options through to every page', async () => {
     const [aligned] = await alignPages([pair(1, 3)], { output: 'none', model: 'affine' })
 

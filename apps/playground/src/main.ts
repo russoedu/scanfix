@@ -1,9 +1,10 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 import type { AlignResult } from '@scanmate/align'
-import { alignScan } from '@scanmate/align'
+import { alignPages, alignScan } from '@scanmate/align'
 import type { Region, RegionReport } from '@scanmate/diff'
 import { compareRegions, renderDiff } from '@scanmate/diff'
+import { extractPair } from '@scanmate/extract'
 import type { Raster, TransformModel } from '@scanmate/ink'
 import {
   cloneRaster,
@@ -26,14 +27,18 @@ import {
  * npm run playground:start                      # synthetic form, end to end
  * npm run playground:start -- --original page.png --scanned returned.jpg \
  *   --region signature:76,905,420,78 --model homography
+ * npm run playground:start -- --original contract.pdf --scanned returned.pdf
  * ```
+ *
+ * Given two PDFs it runs the document pipeline - extract, align every page, and
+ * an overlay per page - and writes `page-N-aligned.png` and `page-N-diff.png`.
  */
 
 interface Options {
   original?: string
   scanned?:  string
   out:       string
-  model:     TransformModel
+  model:     TransformModel | 'all'
   regions:   Region[]
   json:      boolean
 }
@@ -41,6 +46,12 @@ interface Options {
 async function main (): Promise<void> {
   const options = parseArguments(process.argv.slice(2))
   mkdirSync(options.out, { recursive: true })
+
+  if (isPdf(options.original) && isPdf(options.scanned)) {
+    await runDocument(options.original, options.scanned, options)
+
+    return
+  }
 
   const inputs = options.original !== undefined && options.scanned !== undefined
     ? await loadPair(options.original, options.scanned)
@@ -178,17 +189,65 @@ async function loadPair (original: string, scanned: string): Promise<{ original:
   }
 }
 
+function isPdf (path: string | undefined): path is string {
+  return path?.toLowerCase().endsWith('.pdf') === true
+}
+
+/**
+ * Two PDFs: extract every page pair at the scan's resolution, align them all, and
+ * write an overlay per page. `--region` rectangles are checked on every page.
+ */
+async function runDocument (original: string, scanned: string, options: Options): Promise<void> {
+  console.log('')
+  console.log(`  original  ${basename(original)}`)
+  console.log(`  scanned   ${basename(scanned)}`)
+
+  const started = Date.now()
+  const document = await extractPair({ original, scanned }, { output: 'none' })
+  const extracted = Date.now()
+  const aligned = await alignPages(document.pages, { model: options.model, output: 'none' })
+
+  console.log('')
+  console.log('  page  original  scanned   dpi  model       confidence       overlap  rotation  filled')
+  console.log(`  ${'─'.repeat(90)}`)
+  const summary = []
+  for (const page of aligned) {
+    const { aligned: result, metadata } = page
+    const reports = await compareRegions(page.original.raster, result.raster, options.regions)
+    await write(options.out, `page-${page.page}-aligned.png`, result.raster)
+    await write(options.out, `page-${page.page}-diff.png`, await renderDiff(page.original.raster, result.raster))
+
+    const filled = reports.filter(r => r.filled).map(r => r.id).join(',') || '-'
+    const kinds = `${metadata.original.kind.padEnd(8)}  ${metadata.scanned.kind.padEnd(8)}`
+    const fit = `${result.diagnostics.selectedModel.padEnd(10)}  ${bar(result.confidence)} ${result.confidence.toFixed(3)}`
+    const geometry = `${result.diagnostics.intersectionOverUnion.toFixed(3)}  ${result.transform.rotationDeg.toFixed(2).padStart(7)}°`
+    console.log(`  ${String(page.page).padStart(4)}  ${kinds}  ${String(page.scanned.dpi).padStart(4)}  ${fit}  ${geometry}  ${filled}`)
+    summary.push({ page: page.page, result: summarise(result), regions: reports })
+  }
+
+  const { unpaired, pageCount } = document
+  console.log('')
+  console.log(`  pages     ${pageCount.original} original, ${pageCount.scanned} scanned`)
+  if (unpaired.original.length > 0) console.log(`  MISSING   original pages with no scan: ${unpaired.original.join(', ')}`)
+  if (unpaired.scanned.length > 0) console.log(`  EXTRA     scanned pages with no original: ${unpaired.scanned.join(', ')}`)
+  console.log(`  elapsed   extract ${extracted - started} ms, align + overlays ${Date.now() - extracted} ms`)
+  console.log(`  wrote     ${resolve(options.out)}`)
+
+  if (options.json) console.log(JSON.stringify({ unpaired, pageCount, pages: summary }, null, 2))
+}
+
 async function write (out: string, name: string, raster: Raster): Promise<void> {
   writeFileSync(resolve(out, name), await encodeImage(raster, { format: 'png' }))
 }
 
 /** Flags that consume the argument after them. Everything else is a switch. */
 const VALUED = new Set(['--original', '--scanned', '--out', '--model', '--region'])
+const MODELS = new Set(['all', 'similarity', 'affine', 'homography'])
 
 function parseArguments (argv: string[]): Options {
   const options: Options = {
     out:     'playground-output',
-    model:   'similarity',
+    model:   'all',
     regions: [],
     json:    false,
   }
@@ -228,7 +287,8 @@ function applyFlag (options: Options, flag: string, value: string): void {
       break
     }
     case '--model': {
-      options.model = value as TransformModel
+      if (!MODELS.has(value)) throw new Error(`--model must be one of ${[...MODELS].join(', ')}, got ${value}`)
+      options.model = value as Options['model']
       break
     }
     default: {
