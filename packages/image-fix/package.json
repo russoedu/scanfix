@@ -18,14 +18,14 @@
   ],
   "license": "MIT",
   "author": "Eduardo Russo",
-  "homepage": "https://github.com/russoedu/scanfix/tree/main/packages/image-fix#readme",
+  "homepage": "https://github.com/russoedu/scanmate/tree/main/packages/image-fix#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/russoedu/scanfix.git",
+    "url": "git+https://github.com/russoedu/scanmate.git",
     "directory": "packages/image-fix"
   },
   "bugs": {
-    "url": "https://github.com/russoedu/scanfix/issues"
+    "url": "https://github.com/russoedu/scanmate/issues"
   },
   "type": "module",
   "main": "./dist/index.esm.js",

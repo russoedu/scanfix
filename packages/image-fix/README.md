@@ -35,6 +35,51 @@ npm install @scanmate/align @scanmate/diff @scanmate/ink @scanmate/extract
 ```
 
 ---
+> What follows is the reasoning. For the full algorithm - the formulae, every
+> constant, the coordinate-frame algebra and the measured error - see
+> [`documentation/fix.md`](https://github.com/russoedu/scanmate/blob/main/documentation/fix.md).
+
+### 1. Ink, not greyscale
+
+A scan differs from its source in ways that have nothing to do with geometry:
+the lamp is brighter in the middle, the phone cast a shadow down one side, the
+JPEG quantiser smeared the strokes. So nothing downstream looks at greyscale.
+It looks at **ink**: greyscale divided by its own slowly varying background,
+then inverted. Near zero on paper, near one on print, whatever the lighting did.
+
+Division, not subtraction, because illumination is multiplicative — a shadow
+halves what reaches the sensor, it does not subtract a constant. Think of it as
+reading the page through tracing paper: you lose the tint of the paper and the
+angle of the lamp, and you keep the writing.
+
+### 2. A coarse guess, because descriptors are not scale invariant
+
+Binary descriptors compare pixels at fixed offsets, so a corner at 300 dpi and
+the same corner at 150 dpi produce two unrelated bit strings. Something has to
+establish roughly how big the scan is before matching can work, and nothing in
+a JPEG header says.
+
+So the library guesses three ways and lets the pixels judge:
+
+| strategy | assumption | when it wins |
+| --- | --- | --- |
+| `frame` | the scan is the whole page, so the frames correspond | edge-to-edge scans |
+| `content` | the *printing* corresponds | scans with different margins |
+| `deskew` | measure each page's own skew, then match the printing straight | usually |
+
+Skew is measured by rotating until the rows of text stack up: at the right
+angle every line falls into one bin of the projection histogram and the profile
+is a comb of tall spikes; a degree off and each line smears across several.
+
+Each guess gets a phase-correlation nudge for leftover translation, and all of
+them are warped and scored on ink correlation. Guessing several times and
+measuring beats one clever guess, and at 512 px each attempt is nearly free.
+
+### 3. Features, on the *corrected* scan
+
+FAST corners, oriented by the intensity centroid of their patch, described by
+256 steered BRIEF bits — an ORB, written out, because the native one is
+unavailable here.
 
 ## Quick Start
 
