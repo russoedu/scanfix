@@ -1,6 +1,6 @@
 import sharp from 'sharp'
 
-import { countPages, decodeImage, encodeImage, readImageMetadata } from './image-codec.client'
+import { countPages, decodeImage, encodeImage, readImageMetadata, resampleRaster } from './image-codec.client'
 import { createRaster } from './raster.model'
 
 /** Odd dimensions on purpose: a stride or padding bug hides behind a round number. */
@@ -161,4 +161,34 @@ describe('countPages', () => {
   // sources but will not write one from a raw buffer (`pageHeight` on raw input
   // produces a single tall page). Covering the greater-than-one case needs a real
   // scanner TIFF committed as a fixture, which belongs with the PDF fixtures.
+})
+
+describe('resampleRaster', () => {
+  it('enlarges to the exact size asked for, keeping a solid colour solid', async () => {
+    const out = await resampleRaster(createRaster(31, 20, [40, 90, 200, 255]), 100, 65)
+
+    expect({ width: out.width, height: out.height }).toEqual({ width: 100, height: 65 })
+    expect([...out.data.slice(50 * 4 * 100 + 200, 50 * 4 * 100 + 204)]).toEqual([40, 90, 200, 255])
+  })
+
+  it('keeps a dark stroke dark when enlarging it threefold', async () => {
+    const page = createRaster(30, 30)
+    for (let y = 0; y < 30; y++) page.data.set([0, 0, 0, 255], (y * 30 + 15) * 4)
+    const out = await resampleRaster(page, 90, 90)
+
+    expect(out.data[(45 * 90 + 46) * 4]).toBeLessThan(60)
+    expect(out.data[(45 * 90 + 10) * 4]).toBe(255)
+  })
+
+  it('returns a copy, not the input, when the size is unchanged', async () => {
+    const page = createRaster(4, 4)
+    const out = await resampleRaster(page, 4, 4)
+
+    expect(out).not.toBe(page)
+    expect(out.data).toEqual(page.data)
+  })
+
+  it('refuses a size that is not a positive whole number of pixels', async () => {
+    await expect(resampleRaster(createRaster(4, 4), 0, 4)).rejects.toThrow(RangeError)
+  })
 })

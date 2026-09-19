@@ -35,8 +35,8 @@ export type { BinaryImage, GrayImage, ImageInput, Raster } from './raster-codec'
  * encoding a page than the pure-JavaScript codec it replaces, and the only path
  * that reads TIFF, HEIF, WebP or AVIF or honours EXIF orientation.
  */
-export { countPages, decodeImage, encodeImage, readImageMetadata } from './raster-codec'
-export type { DecodeOptions, EncodeOptions, ImageFormat, ImageMetadata } from './raster-codec'
+export { countPages, decodeImage, encodeImage, readImageMetadata, resampleRaster } from './raster-codec'
+export type { DecodeOptions, EncodeOptions, ImageFormat, ImageMetadata, ResampleOptions } from './raster-codec'
 
 // --- Ink: greyscale to ink, ink to mask ---
 

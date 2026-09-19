@@ -151,6 +151,35 @@ export async function encodeImage (image: Raster, options: EncodeOptions = {}): 
   return new Uint8Array(await encode[format]().toBuffer())
 }
 
+export interface ResampleOptions {
+  /**
+   * Interpolation. `lanczos3` (the default) keeps strokes sharpest when a page
+   * is enlarged for OCR; `cubic` is softer; `nearest` copies pixels, for masks.
+   */
+  kernel?: 'nearest' | 'linear' | 'cubic' | 'mitchell' | 'lanczos2' | 'lanczos3'
+}
+
+/**
+ * Resize a raster to exactly `width` x `height`, through libvips.
+ *
+ * For whole-page resampling - enlarging a 93-dpi scan to the 300 dpi OCR reads
+ * best at - where libvips's kernels beat anything worth hand-writing. The pixel
+ * kernels that must run synchronously resize with `resizeGray` instead.
+ */
+export async function resampleRaster (image: Raster, width: number, height: number, options: ResampleOptions = {}): Promise<Raster> {
+  const { kernel = 'lanczos3' } = options
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width <= 0 || height <= 0)
+    throw new RangeError(`cannot resample to ${width} x ${height}`)
+  if (width === image.width && height === image.height) return { width, height, data: new Uint8ClampedArray(image.data) }
+
+  const { data, info } = await sharp(bytesOf(image), { raw: { width: image.width, height: image.height, channels: 4 } })
+    .resize({ width, height, fit: 'fill', kernel })
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+
+  return { width: info.width, height: info.height, data: asClamped(new Uint8Array(data)) }
+}
+
 /** Read what a file claims about itself without decoding its pixels. */
 export async function readImageMetadata (input: ImageInput): Promise<ImageMetadata> {
   if (isRaster(input))
