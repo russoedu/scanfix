@@ -108,16 +108,28 @@ async function readPage (page: ReadablePage, engine: OcrEngine, options: OcrOpti
     .map(group => group.filter(word => !printedUnder(page.original.raster, originalDpi, word)))
     .filter(group => group.length > 0)
   const rechecks = { attempted: 0, cleared: 0 }
+  const rechecked = new Set<number>()
   if (recheck !== false)
     for (const [r, run] of references.entries()) {
       if (judgeRun(run.text, claims.found[r], rules).agrees) continue
       rechecks.attempted++
+      rechecked.add(r)
       const second = await recheckRun(engine, scanImage, run, { ...rules, ...recheck })
       if (second.reading === null) continue
       claims.found[r] = second.reading
       rechecks.cleared++
     }
   const match = judgeRuns(references, claims, rules)
+  const runs = references.map((run, r) => ({
+    text:      run.text,
+    found:     claims.found[r],
+    agrees:    judgeRun(run.text, claims.found[r], rules).agrees,
+    rechecked: rechecked.has(r),
+    x:         run.x,
+    y:         run.y,
+    width:     run.width,
+    height:    run.height,
+  }))
   const metrics = compareTexts(match.expectedText, match.alignedText, normalise)
   if (scanned.side.confidence !== null && scanned.side.confidence < 60) warnings.push(`low OCR confidence on the scanned page (${Math.round(scanned.side.confidence)})`)
 
@@ -125,6 +137,7 @@ async function readPage (page: ReadablePage, engine: OcrEngine, options: OcrOpti
     page:        page.page,
     original,
     scanned:     scanned.side,
+    runs,
     alignedText: match.alignedText,
     score:       metrics[scoreMetric],
     metrics,

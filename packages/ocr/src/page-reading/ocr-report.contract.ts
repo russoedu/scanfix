@@ -104,10 +104,29 @@ export interface TextDifference {
   height:     number
 }
 
+/** One run of the original, and what the scan reads in its place. */
+export interface RunReading {
+  /** The original's text. */
+  text:      string
+  /** What was read there - by the page reading, or by the recheck that cleared it. */
+  found:     string
+  /** The reading agrees with the original, by the rule every run is judged by. */
+  agrees:    boolean
+  /** The run was re-read on its own. */
+  rechecked: boolean
+  /** Where the original prints it, in points from the top-left. */
+  x:         number
+  y:         number
+  width:     number
+  height:    number
+}
+
 export interface PageOcr {
   page:        number
   original:    SideText
   scanned:     SideText
+  /** Every run of the original with its reading, in the original's order - what a search for required content consults. */
+  runs:        RunReading[]
   /**
    * The scan's words re-ordered to follow the original: each run of the
    * original followed by what was read in its place, then any added words.

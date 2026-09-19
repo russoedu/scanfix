@@ -132,6 +132,14 @@ describe('ocrPages', () => {
     expect(result.score).toBeGreaterThan(0.5)
     expect(result.score).toBeLessThan(0.9)
     expect(report.engine).toEqual({ name: 'stub', version: '1', languages: ['eng'] })
+    // Every run of the original, with what was read in its place.
+    expect(result.runs.map(r => [r.text, r.found, r.agrees])).toEqual([
+      ['Customer Details', 'Customer Details', true],
+      ['Order#', 'Order#', true],
+      ['The Resistance', 'The Resistance', true],
+      ['Total 1,250.00', 'Total 7,250.00', false],
+      ["Planet D'Qar", '', false],
+    ])
   })
 
   it('re-reads a doubted run on its own, and clears it only when two passes agree with the original', async () => {
