@@ -1,3 +1,5 @@
+![scanmate ocr](./scanmate-ocr.svg)
+
 # `@scanmate/ocr`
 
 Measures how closely a scan's text matches the original's: a score per page and for the document, ten measures, both texts in full, and every difference with its position on the page.

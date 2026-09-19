@@ -1,3 +1,5 @@
+![scanmate audit](./scanmate-audit.svg)
+
 # `@scanmate/audit`
 
 The final audit of a returned document. Every page is read in full and compared pixel by pixel. The two results are merged into one list of findings and a verdict, with a side-by-side image as evidence.

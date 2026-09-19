@@ -1,3 +1,5 @@
+![scanmate align](./scanmate-align.svg)
+
 # `@scanmate/align`
 
 > Coarse-to-fine geometric alignment engine for matching scanned pages back onto reference document templates.
@@ -60,13 +62,13 @@ console.log(`Confidence: ${(result.confidence * 100).toFixed(1)}%`)
 flowchart TD
     A["Original Template & Scanned Image"] --> B["Decode to Rasters & Ink Normalization"]
     B --> C["Coarse Estimator (512px downsample)"]
-    
+
     subgraph CoarseStrategy["Coarse Estimation Hypotheses"]
         C1["Hypothesis 1: Frame Matching"]
         C2["Hypothesis 2: Content Bounding-Box"]
         C3["Hypothesis 3: Projection Histogram Deskew"]
     end
-    
+
     C --> CoarseStrategy
     CoarseStrategy --> D["Score Candidates via Ink Correlation"]
     D --> E["Best Coarse Transform H_coarse"]

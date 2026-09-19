@@ -1,4 +1,6 @@
-# scanfix
+![scanmate](./scanmate.svg)
+
+# scanmate
 
 Tools for checking what came back. A document goes out as a PDF; a scan or a
 photograph of it comes back turned, rescaled and shadowed. These packages put
@@ -12,11 +14,11 @@ An [Nx](https://nx.dev) monorepo, created with
 
 | package | what it is |
 | --- | --- |
-| [`@scanmate/image-fix`](packages/image-fix) | Aligns a scan onto the page it came from, and reports which known regions gained ink. Pure JavaScript - no native bindings, so it deploys to an Azure Function app unchanged. |
+| [`@scanmate/image-fix`](packages/image-fix) |s a scan onto the page it came from, and reports which known regions gained ink. Pure JavaScript - no native bindings, so it deploys to an Azure Function app unchanged. |
 
 | app | what it is |
 | --- | --- |
-| [`playground`](apps/playground) | A CLI for looking at what the library actually did: writes the aligned page and a diff overlay to disk. |
+| [`playground`](apps/playground) | A CLI for looking at what the library actually did: writes theed page and a diff overlay to disk. |
 
 ## Documentation
 

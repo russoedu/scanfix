@@ -1,3 +1,5 @@
+![scanmate diff](./scanmate-diff.svg)
+
 # `@scanmate/diff`
 
 > Visual change detection, form field verification, and unexpected modification analysis for aligned document pairs.
