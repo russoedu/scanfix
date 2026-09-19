@@ -147,8 +147,13 @@ async function readPage (page: ReadablePage, engine: OcrEngine, options: OcrOpti
   }
 }
 
-/** At least this share of a word's box dark in the original means the original printed something there. */
-const PRINTED_SHARE = 0.05
+/**
+ * At least this share of a word's box dark in the original means the original
+ * printed something there. Printed words - a logo's letters - cover a third of
+ * their box or more; a form's rule or a checkbox edge crossing a handwritten
+ * word covers a tenth. Only the first explains the word away.
+ */
+const PRINTED_SHARE = 0.2
 
 /** The original has ink under the word: something is printed there, text layer or not. */
 function printedUnder (raster: Raster, dpi: number, word: PlacedText): boolean {

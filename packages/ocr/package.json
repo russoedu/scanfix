@@ -21,6 +21,7 @@
   ],
   "dependencies": {
     "@scanmate/ink": "^0.0.1",
+    "@tesseract.js-data/eng": "^1.0.0",
     "fastest-levenshtein": "^1.0.16",
     "tesseract.js": "^7.0.0"
   },

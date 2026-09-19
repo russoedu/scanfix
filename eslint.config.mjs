@@ -101,4 +101,28 @@ export default [
     name:    'local/vitest-scratch-files',
     ignores: ['**/vitest.config.*.timestamp*'],
   },
+  {
+    // @scanmate/ocr reads its English model from @tesseract.js-data/eng with
+    // require.resolve at run time, which the rule cannot see - so it calls the
+    // package unused, and --fix deletes it, leaving every install without
+    // language data. The options repeat mnci's, because a rule's options are
+    // replaced, not merged.
+    name:  'local/ocr-language-data',
+    files: ['packages/ocr/package.json'],
+    rules: {
+      '@nx/dependency-checks': ['error', {
+        ignoredDependencies: ['@tesseract.js-data/eng'],
+        ignoredFiles:        [
+          '{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}',
+          '{projectRoot}/rollup.config.{js,ts,mjs,mts,cjs,cts}',
+          '{projectRoot}/tsup.config.{js,ts,mjs,mts,cjs,cts}',
+          '{projectRoot}/vite.config.{js,ts,mjs,mts,cjs,cts}',
+          '{projectRoot}/vitest.config.{js,ts,mjs,mts,cjs,cts}',
+          '{projectRoot}/jest.config.{js,ts,mjs,mts,cjs,cts}',
+          '{projectRoot}/**/*.spec.{js,ts,jsx,tsx}',
+          '{projectRoot}/**/*.test.{js,ts,jsx,tsx}',
+        ],
+      }],
+    },
+  },
 ]
