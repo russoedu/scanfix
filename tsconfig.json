@@ -32,6 +32,9 @@
     },
     {
       "path": "./packages/find"
+    },
+    {
+      "path": "./packages/audit"
     }
   ],
   "compilerOptions": {}
