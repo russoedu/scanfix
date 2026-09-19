@@ -29,7 +29,9 @@
     "enhance:qa": "nx run enhance:lint && nx run enhance:test",
     "enhance:build": "nx run enhance:build",
     "merge:qa": "nx run merge:lint && nx run merge:test",
-    "merge:build": "nx run merge:build"
+    "merge:build": "nx run merge:build",
+    "ocr:qa": "nx run ocr:lint && nx run ocr:test",
+    "ocr:build": "nx run ocr:build"
   },
   "private": true,
   "devDependencies": {
