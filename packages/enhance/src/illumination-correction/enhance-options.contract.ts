@@ -7,16 +7,17 @@ export interface EnhanceOptions {
    */
   backgroundFraction?: number
   /**
-   * Share of the local background above which a pixel becomes pure white,
-   * wiping paper texture, scanner noise and residual shading. `'auto'` takes it
-   * from the page's own histogram - just below where most paper sits - instead of
-   * a value tuned for an average page. A page-scale statistic: on a swatch of a
-   * few pixels, give a number.
+   * Share of the local background above which a pixel becomes pure white. Below
+   * 1 it wipes paper texture, scanner noise and residual shading. `'auto'` (the
+   * default) reads it from the page's own histogram, and on real scans settles
+   * at 1.1, which leaves paper light grey rather than white - see
+   * `estimateContrastPoints`. A page-scale statistic: for a small swatch, pass a
+   * number.
    */
   whitePoint?:         number | 'auto'
   /**
    * Share of the local background below which a pixel becomes pure black.
-   * `'auto'` mirrors `whitePoint`: just above where most ink sits.
+   * `'auto'` (the default) mirrors `whitePoint`, from the darkest 1% of the page.
    */
   blackPoint?:         number | 'auto'
   /**
@@ -28,7 +29,7 @@ export interface EnhanceOptions {
   /**
    * Median-filter the page before normalising. Speckle left in place fuses into
    * thin strokes once contrast is stretched; a median can equally erase a stroke
-   * only a pixel or two wide. `'auto'` measures the page's noise first and
+   * only a pixel or two wide. `'auto'` (the default) measures the page's noise first and
    * despeckles only a page that is genuinely noisy.
    */
   despeckle?:          boolean | 'auto'

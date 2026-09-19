@@ -4,12 +4,19 @@ import type { GrayImage } from '@scanmate/ink'
  * Where to clamp to black and to white, read from the page itself.
  *
  * Every pixel is a ratio to its local background: paper sits near 1, ink well
- * below. A histogram of those ratios has two populations, and fixed clamp points
- * suit only the average page. Instead the black point sits just above where the
- * darkest 1% fall and the white point just below where the brightest 1% start,
- * so a faint page gets a hard stretch and a crisp one a gentle one. Both are
- * kept within bounds that no real page needs to leave: black at most 0.4, white
- * between 0.7 and 1.1.
+ * below. The black point is the ratio the darkest 1% of pixels reach, the white
+ * point the one the brightest 1% start at, each kept within bounds - black at
+ * most 0.4, white between 0.7 and 1.1.
+ *
+ * Read what that does on a real page, because it is not "paper to white". Paper
+ * is nearly all of a page and noise spreads it both ways, so its brightest 1%
+ * sit above 1 and the white point lands on its 1.1 bound; ink is a few percent
+ * of a text page and softened at scan resolution, so the black point lands on
+ * its 0.4 bound. On three real scans that held on every one of 21 pages: `auto`
+ * became a gentle stretch from 0.4 to 1.1, leaving paper light grey (about 220)
+ * and deepening ink. It is kept because it read best - on OCR word recall it
+ * beat fixed points that do whiten the paper. For white paper, pass a fixed
+ * `whitePoint` below 1.
  */
 
 export interface ContrastPoints {

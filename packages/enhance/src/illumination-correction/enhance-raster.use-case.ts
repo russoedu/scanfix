@@ -17,12 +17,21 @@ import type { AppliedEnhancement, EnhanceOptions } from './enhance-options.contr
  * a blue pen stays blue.
  */
 
+/**
+ * Chosen by OCR word recall on three real scans (93, 120 and 144 dpi, 21 pages)
+ * enlarged to 300 dpi: automatic clamp points gave the best mean, 0.738 against
+ * 0.728 unenhanced, and gained most where reading is hardest - 0.448 against
+ * 0.397 at 93 dpi. Forcing a despeckle cost recall at every resolution tried,
+ * and badly at the scans' own (0.141 against 0.392 at 93 dpi): a 3x3 median
+ * erases a stroke one or two pixels wide. So despeckling is `'auto'`, which only
+ * fires on a page that measures noisy.
+ */
 export const DEFAULT_ENHANCE_OPTIONS: Required<EnhanceOptions> = {
   backgroundFraction: 1 / 16,
-  whitePoint:         0.92,
-  blackPoint:         0.05,
+  whitePoint:         'auto',
+  blackPoint:         'auto',
   mode:               'color',
-  despeckle:          false,
+  despeckle:          'auto',
   despeckleThreshold: 0.01,
   despeckleRadius:    1,
 }

@@ -6,10 +6,11 @@ import { enhanceScan } from './enhance-scan.use-case'
 /**
  * The pipeline stage: every aligned page with a cleaned copy alongside.
  *
- * The cleaned image keeps the canvas and dpi of the image it came from, so
- * with the default `source: 'aligned'` it lines up with the original exactly
- * like the aligned scan does. Pages run one after another; each reports a
- * `start` and a `done` event with what `'auto'` settings resolved to.
+ * The cleaned image is the image it came from, enlarged to `targetDpi` (300)
+ * when below it. With the default `source: 'aligned'` that is still the
+ * original's canvas, at a finer grid: a region in points lands at
+ * `points * dpi / 72`. Pages run one after another; each reports a `start` and a
+ * `done` event carrying what the `'auto'` settings resolved to.
  */
 export async function enhancePages<Page extends AlignedPage> (
   pages: readonly Page[],
@@ -25,8 +26,8 @@ export async function enhancePages<Page extends AlignedPage> (
 
     const raster = source === 'aligned' ? page.aligned.raster : page.scanned.raster
     const dpi = source === 'aligned' ? page.original.dpi : page.scanned.dpi
-    const result = await enhanceScan(raster, enhance)
-    results.push({ ...page, enhanced: { ...result, dpi } })
+    const result = await enhanceScan(raster, { ...enhance, dpi })
+    results.push({ ...page, enhanced: result })
 
     onProgress?.({
       stage:      'enhance',
@@ -35,7 +36,7 @@ export async function enhancePages<Page extends AlignedPage> (
       index,
       total:      pages.length,
       durationMs: Date.now() - started,
-      detail:     { ...result.applied },
+      detail:     { ...result.applied, dpi: result.dpi, scale: result.scale },
     })
   }
 

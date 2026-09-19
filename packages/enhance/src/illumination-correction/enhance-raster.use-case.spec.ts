@@ -5,6 +5,8 @@ import { estimateContrastPoints } from './contrast-points.policy'
 import { enhanceRaster } from './enhance-raster.use-case'
 
 const MIDDLE = (8 * 16 + 8) * 4
+/** A 16x16 swatch is too small for page statistics - one pixel of ink reads as noise - so swatch tests fix the settings. */
+const FIXED = { whitePoint: 0.92, blackPoint: 0.05, despeckle: false } as const
 
 function withPixel (background: [number, number, number, number], ink: [number, number, number]): Raster {
   const raster = createRaster(16, 16, background)
@@ -35,14 +37,14 @@ describe('enhanceRaster', () => {
   })
 
   it('keeps a blue pen blue on yellowed paper in colour mode', () => {
-    const { raster } = enhanceRaster(withPixel([200, 190, 150, 255], [30, 40, 180]), { mode: 'color' })
+    const { raster } = enhanceRaster(withPixel([200, 190, 150, 255], [30, 40, 180]), { ...FIXED, mode: 'color' })
 
     expect(raster.data[MIDDLE + 2]).toBeGreaterThan(raster.data[MIDDLE])
     expect(raster.data[MIDDLE + 2]).toBeGreaterThan(raster.data[MIDDLE + 1])
   })
 
   it('returns a monochrome page in grayscale mode', () => {
-    const { raster } = enhanceRaster(withPixel([100, 150, 200, 255], [30, 40, 50]), { mode: 'grayscale' })
+    const { raster } = enhanceRaster(withPixel([100, 150, 200, 255], [30, 40, 50]), { ...FIXED, mode: 'grayscale' })
 
     for (let i = 0; i < raster.data.length; i += 4) {
       expect(raster.data[i]).toBe(raster.data[i + 1])
@@ -51,23 +53,30 @@ describe('enhanceRaster', () => {
   })
 
   it('leaves a clean white page clean', () => {
-    const { raster } = enhanceRaster(withPixel([255, 255, 255, 255], [0, 0, 0]))
+    const { raster } = enhanceRaster(withPixel([255, 255, 255, 255], [0, 0, 0]), FIXED)
 
     expect(raster.data[0]).toBe(255)
     expect(raster.data[MIDDLE]).toBe(0)
   })
 
-  it('flattens a shadow: paper on the dark side comes out as white as on the lit side', () => {
+  it('flattens a shadow: paper on the dark side comes out as light as on the lit side', () => {
     const { raster } = enhanceRaster(shadowed(), { mode: 'grayscale' })
     const at = (x: number): number => raster.data[(50 * 200 + x) * 4]
 
-    expect(at(20)).toBe(255)
-    expect(at(180)).toBe(255)
-    expect(at(100)).toBeLessThan(90)
+    // 120 against 240 going in; the same value coming out.
+    expect(Math.abs(at(20) - at(180))).toBeLessThanOrEqual(2)
+    expect(at(100)).toBeLessThan(at(20) - 120)
   })
 
-  it('reports what it did, with automatic settings resolved', () => {
-    const { applied } = enhanceRaster(shadowed(), { whitePoint: 'auto', blackPoint: 'auto', despeckle: 'auto' })
+  it('clamps paper to pure white with fixed points below it', () => {
+    const { raster } = enhanceRaster(shadowed(), { mode: 'grayscale', whitePoint: 0.92, blackPoint: 0.05 })
+
+    expect(raster.data[(50 * 200 + 20) * 4]).toBe(255)
+    expect(raster.data[(50 * 200 + 180) * 4]).toBe(255)
+  })
+
+  it('reports what it did, with the automatic defaults resolved', () => {
+    const { applied } = enhanceRaster(shadowed())
 
     expect(applied.whitePoint).toBeGreaterThanOrEqual(0.7)
     expect(applied.whitePoint).toBeLessThanOrEqual(1.1)
