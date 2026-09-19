@@ -1,3 +1,5 @@
+![scanmate extract](./scanmate-extract.svg)
+
 # `@scanmate/extract`
 
 > PDF document parsing, page structure inspection, native DPI determination, and Skia canvas rasterization.
@@ -58,11 +60,11 @@ flowchart TD
     D -- No --> F{"Text / Vector Content present?"}
     F -- Yes --> G["Classify as 'born-digital'"]
     F -- No --> H["Classify as 'mixed'"]
-    
+
     E --> I["Extract Embedded Image Dimensions (w_img, h_img)"]
     I --> J["Compute Native DPI:<br/>DPI = (w_img / widthPt) * 72"]
     G --> K["Use Target / Default DPI (e.g. 300)"]
-    
+
     J --> L["pairDpi()<br/>Match Original render resolution to Scan native DPI"]
     K --> L
     L --> M["@napi-rs/canvas Skia Render<br/>Generate 1:1 comparable Rasters"]

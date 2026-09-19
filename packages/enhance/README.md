@@ -1,3 +1,5 @@
+![scanmate enhance](./scanmate-enhance.svg)
+
 # `@scanmate/enhance`
 
 Scans cleaned for reading: even lighting, lighter paper, darker ink, and speckle removed where a page is measurably noisy. Pages below 300 dpi are enlarged to 300 first, since that is the resolution OCR reads best at.

@@ -1,3 +1,5 @@
+![scanmate ink](./scanmate-ink.svg)
+
 # `@scanmate/ink`
 
 > The pixel and geometry kernel powering ScanMate's document processing pipeline.

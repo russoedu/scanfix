@@ -1,3 +1,5 @@
+![scanmate merge](./scanmate-merge.svg)
+
 # `@scanmate/merge`
 
 PDFs, images and rasters into one PDF, in the order given and mixed freely.

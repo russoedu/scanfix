@@ -1,3 +1,5 @@
+![scanmate find](./scanmate-find.svg)
+
 # `@scanmate/find`
 
 Checks whether the content that must be on each page is there, and whether it's where the original puts it.
