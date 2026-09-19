@@ -86,6 +86,41 @@ describe('diffPage', () => {
     expect(diff.expected[0]).toMatchObject({ identified: false, addedInk: 0 })
   })
 
+  it('describes the shape of a signature: one change, inside its box, clear of the border', async () => {
+    const diff = await diffPage(page(signed()), [expect_('signature', SIGNATURE)], { output: 'none' })
+    const { ink, overfilled } = diff.expected[0]
+
+    expect(overfilled).toBe(false)
+    expect(ink.changes).toBe(1)
+    expect(ink.largestArea).toBeCloseTo(diff.expected[0].addedInk, 5)
+    expect(ink.bounds!.x).toBeGreaterThanOrEqual(SIGNATURE.x)
+    expect(ink.bounds!.x + ink.bounds!.width).toBeLessThanOrEqual(SIGNATURE.x + SIGNATURE.width)
+    expect(ink.widthRatio).toBeGreaterThan(0.3)
+    expect(ink.widthRatio).toBeLessThanOrEqual(1)
+    expect(ink.edgeTouch).toBeLessThan(0.2)
+  })
+
+  it('does not call a blacked-out box signed', async () => {
+    const raster = cloneRaster(FORM.raster)
+    fillRect(raster, { x: SIGNATURE.x + 2, y: SIGNATURE.y + 2, width: SIGNATURE.width - 4, height: SIGNATURE.height - 4 }, 0)
+    const diff = await diffPage(page(raster), [expect_('signature', SIGNATURE)], { output: 'none' })
+
+    expect(diff.expected[0]).toMatchObject({ identified: false, overfilled: true })
+    expect(diff.expected[0].ink.fill).toBeGreaterThan(0.5)
+  })
+
+  it('does not take a sliver of the printed border for a filled-in field', async () => {
+    // What a border left out of place looks like: a thin rule the length of the
+    // region - clear of the printed frame's tolerance band, so new ink by
+    // position - that no one wrote.
+    const raster = cloneRaster(FORM.raster)
+    fillRect(raster, { x: SIGNATURE.x, y: SIGNATURE.y + SIGNATURE.height - 9, width: SIGNATURE.width, height: 1 }, 0)
+    const diff = await diffPage(page(raster), [expect_('signature', SIGNATURE)], { output: 'none' })
+
+    expect(diff.expected[0].identified).toBe(false)
+    expect(diff.expected[0].ink.formLines).toBe(1)
+  })
+
   it('reports a mark nobody expected as one merged box, where it was made', async () => {
     const diff = await diffPage(page(signed()), [], { output: 'none' })
 
@@ -178,6 +213,37 @@ describe('diffPage', () => {
     expect(hasColour(annotated.diffRaster, IDENTIFIED)).toBe(true)
     expect(hasColour(annotated.diffRaster, NOT_IDENTIFIED)).toBe(true)
     expect(hasColour(annotated.diffRaster, UNEXPECTED)).toBe(true)
+  })
+
+  it('puts the original and the aligned scan side by side, boxed alike, when asked', async () => {
+    const raster = signed()
+    drawTick(raster, TICK)
+    const expected = [expect_('signature', SIGNATURE), expect_('stamp', FORM.regions.stamp)]
+    const plain = await diffPage(page(raster), expected, { output: 'none' })
+    const diff = await diffPage(page(raster), expected, { output: 'none', sideBySide: true })
+    const { sideBySideRaster: pair } = diff
+    const half = FORM.raster.width
+    const at = (x: number, y: number): number[] => [...pair!.data.slice((y * pair!.width + x) * 4, (y * pair!.width + x) * 4 + 3)]
+
+    expect(plain.sideBySideRaster).toBeNull()
+    expect(pair!.height).toBe(FORM.raster.height)
+    expect(pair!.width).toBeGreaterThan(2 * half)
+    const gutter = pair!.width - 2 * half
+    // The signature's box, identified, on the original's half and at the same place on the scan's.
+    const corner = { x: Math.round(SIGNATURE.x - 2), y: Math.round(SIGNATURE.y - 2) }
+    expect(at(corner.x, corner.y)).toEqual(IDENTIFIED.slice(0, 3))
+    expect(at(corner.x + half + gutter, corner.y)).toEqual(IDENTIFIED.slice(0, 3))
+    expect(hasColour(pair!, NOT_IDENTIFIED)).toBe(true)
+    expect(hasColour(pair!, UNEXPECTED)).toBe(true)
+    // The right half is the scan: the signature's ink is there and not on the left.
+    const inkIn = (x0: number): number => {
+      let dark = 0
+      for (let y = Math.round(SIGNATURE.y) + 3; y < SIGNATURE.y + SIGNATURE.height - 3; y++)
+        for (let x = x0 + Math.round(SIGNATURE.x) + 3; x < x0 + SIGNATURE.x + SIGNATURE.width - 3; x++) if (pair!.data[(y * pair!.width + x) * 4] < 100) dark++
+
+      return dark
+    }
+    expect(inkIn(half + gutter)).toBeGreaterThan(inkIn(0) + 50)
   })
 
   it('encodes the overlay as PNG by default', async () => {

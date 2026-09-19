@@ -35,6 +35,20 @@ export interface LabelOptions {
 }
 
 export function connectedComponents (mask: BinaryImage, options: LabelOptions = {}): Component[] {
+  return labelComponents(mask, options).components
+}
+
+export interface LabelledComponents {
+  components: Component[]
+  /**
+   * Per pixel, one plus the index of its component in `components`; `0` where
+   * the mask is clear. What a caller needs to ask which pixels a component owns.
+   */
+  labels:     Int32Array
+}
+
+/** {@link connectedComponents}, keeping the label image the second pass resolves anyway. */
+export function labelComponents (mask: BinaryImage, options: LabelOptions = {}): LabelledComponents {
   const { connectivity = 8 } = options
   const { width, height, data } = mask
   const labels = new Int32Array(width * height)
@@ -110,6 +124,7 @@ export function connectedComponents (mask: BinaryImage, options: LabelOptions = 
         index[root] = i
         boxes.push({ minX: x, minY: y, maxX: x, maxY: y, pixels: 0 })
       }
+      labels[row + x] = i + 1
       const box = boxes[i]
       if (x < box.minX) box.minX = x
       if (x > box.maxX) box.maxX = x
@@ -118,11 +133,13 @@ export function connectedComponents (mask: BinaryImage, options: LabelOptions = 
     }
   }
 
-  return boxes.map(b => ({
+  const components = boxes.map(b => ({
     x:      b.minX,
     y:      b.minY,
     width:  b.maxX - b.minX + 1,
     height: b.maxY - b.minY + 1,
     pixels: b.pixels,
   }))
+
+  return { components, labels }
 }

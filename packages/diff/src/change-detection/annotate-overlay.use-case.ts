@@ -4,7 +4,8 @@ import type { Raster, Rect } from '@scanmate/ink'
  * Outline what the report says onto the overlay, so the picture and the numbers
  * can be checked against each other at a glance: green for an expected region
  * that was filled in, amber for one that was not, magenta around every change
- * nobody expected.
+ * nobody expected, and blue - the overlay's colour for lost ink - around ink
+ * that went missing.
  */
 
 export type Rgba = readonly [number, number, number, number]
@@ -12,6 +13,7 @@ export type Rgba = readonly [number, number, number, number]
 export const IDENTIFIED: Rgba = [30, 160, 70, 255]
 export const NOT_IDENTIFIED: Rgba = [230, 150, 20, 255]
 export const UNEXPECTED: Rgba = [200, 30, 190, 255]
+export const MISSING: Rgba = [20, 90, 230, 255]
 
 export interface Annotation {
   rect:  Rect

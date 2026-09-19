@@ -3,11 +3,14 @@ import type { AlignedPage, BinaryImage, Rect } from '@scanmate/ink'
 
 import { buildMasks, measureRegion, paintOverlay } from '../region-comparison'
 import type { Masks } from '../region-comparison'
-import { annotateOverlay, IDENTIFIED, NOT_IDENTIFIED, UNEXPECTED } from './annotate-overlay.use-case'
+import { annotateOverlay, IDENTIFIED, MISSING, NOT_IDENTIFIED, UNEXPECTED } from './annotate-overlay.use-case'
+import type { Annotation } from './annotate-overlay.use-case'
 import { connectedComponents } from './connected-components.use-case'
 import { mergeBoxes } from './merge-boxes.use-case'
 import type { MergedBox } from './merge-boxes.use-case'
 import type { Change, DiffOptions, ExpectedChange, ExpectedResult, PageDiff } from './page-diff.contract'
+import { measureRegionInk } from './region-ink.use-case'
+import { composeSideBySide } from './side-by-side.use-case'
 
 /**
  * What changed on each page, and whether it was supposed to.
@@ -16,9 +19,11 @@ import type { Change, DiffOptions, ExpectedChange, ExpectedResult, PageDiff } fr
  * subtracted from the aligned scan, leaves the ink the scan added. What this adds
  * is the reporting. What changed is grouped into changes - labelled, merged
  * across small gaps, filtered below a physical size. A change whose ink lies
- * mostly in an expected region counts toward that region, which is identified
- * once its changes add up to `minFillArea`; every other change is unexpected.
- * The same grouping is done for ink the scan lost.
+ * mostly in an expected region belongs to that region; every other change is
+ * unexpected. Each region is also analysed on its own - its new ink grouped,
+ * its printed rules discarded, the rest measured - and is identified once that
+ * ink adds up to `minFillArea` without covering more than `maxFill` of it. The
+ * same grouping is done for ink the scan lost.
  *
  * Masks are built once per page and read four ways: the overlay, the expected
  * regions, the added changes and the missing ones.
@@ -63,6 +68,9 @@ export async function diffPage (
     units = 'points',
     tolerance = 2,
     minFillArea = 2,
+    maxFill = 0.5,
+    formLineSpan = 0.9,
+    formLineThickness = 0.6,
     minChangeArea = 1,
     minMissingArea = 4,
     faintInk,
@@ -72,6 +80,7 @@ export async function diffPage (
     maxChanges = 50,
     output = 'png',
     annotate = false,
+    sideBySide = false,
     ink,
   } = options
 
@@ -93,18 +102,28 @@ export async function diffPage (
       .toSorted((a, b) => b.pixels - a.pixels)
   }
 
-  const added = findChanges(difference(masks.scan, masks.originalDilated), minChangeArea)
-  const owner = added.map(box => regions.findIndex(r => inkShareInside(box, r.rect, masks) >= regionOverlap))
-  const outside = added.filter((_, i) => owner[i] === -1)
+  const addedMask = difference(masks.scan, masks.originalDilated)
+  const added = findChanges(addedMask, minChangeArea)
+  const outside = added.filter(box => regions.every(r => inkShareInside(box, r.rect, masks) < regionOverlap))
   const lost = findChanges(difference(masks.original, masks.scanDilated), minMissingArea)
 
   const expectedResults: ExpectedResult[] = regions.map((region, i) => {
-    const addedInk = added.reduce((sum, box, b) => owner[b] === i ? sum + box.pixels * mm2PerPixel : sum, 0)
+    const measured = measureRegionInk(addedMask, region.rect, {
+      mergeGap:           Math.round(mergeGap * pixelsPerMm),
+      minChangePixels:    minChangeArea / mm2PerPixel,
+      lineSpan:           formLineSpan,
+      lineThickness:      formLineThickness * pixelsPerMm,
+      lineThicknessRatio: 0.04,
+      edgeBand:           0.03,
+    })
+    const addedInk = measured.pixels * mm2PerPixel
+    const overfilled = measured.fill > maxFill
     const { removed } = measureRegion(region, masks, 0)
+    const bounds = measured.bounds && scaleRect(measured.bounds, 1 / toPixels)
 
     return {
       id:         region.id,
-      identified: addedInk >= minFillArea,
+      identified: addedInk >= minFillArea && !overfilled,
       x:          expected[i].x,
       y:          expected[i].y,
       width:      expected[i].width,
@@ -112,6 +131,17 @@ export async function diffPage (
       addedInk,
       removedInk: removed * pixelArea(region.rect, masks) * mm2PerPixel,
       score:      minFillArea > 0 ? Math.min(1, addedInk / minFillArea) : 1,
+      overfilled,
+      ink:        {
+        changes:     measured.changes,
+        largestArea: measured.largest * mm2PerPixel,
+        bounds,
+        widthRatio:  bounds ? bounds.width / expected[i].width : 0,
+        heightRatio: bounds ? bounds.height / expected[i].height : 0,
+        edgeTouch:   measured.edgeTouch,
+        fill:        measured.fill,
+        formLines:   measured.formLines,
+      },
     }
   })
 
@@ -127,28 +157,39 @@ export async function diffPage (
   const unexpected = outside.slice(0, maxChanges).map(box => toChange(box))
   const missing = lost.slice(0, maxChanges).map(box => toChange(box))
 
+  const reported: Annotation[] = [
+    ...regions.map((region, i) => ({
+      rect:  grow(region.rect, 2),
+      color: expectedResults[i].identified ? IDENTIFIED : NOT_IDENTIFIED,
+    })),
+    ...outside.slice(0, maxChanges).map(box => ({ rect: grow(box, 4), color: UNEXPECTED })),
+  ]
+
   const diffRaster = paintOverlay(masks)
-  if (annotate)
-    annotateOverlay(diffRaster, [
-      ...regions.map((region, i) => ({
-        rect:  grow(region.rect, 2),
-        color: expectedResults[i].identified ? IDENTIFIED : NOT_IDENTIFIED,
-      })),
-      ...outside.slice(0, maxChanges).map(box => ({ rect: grow(box, 4), color: UNEXPECTED })),
-    ])
+  if (annotate) annotateOverlay(diffRaster, reported)
+
+  // Lines about a point thick at any dpi, so the boxes read the same on every page.
+  const sideBySideRaster = sideBySide
+    ? composeSideBySide(page.original.raster, page.aligned.raster, [
+        ...reported,
+        ...lost.slice(0, maxChanges).map(box => ({ rect: grow(box, 4), color: MISSING })),
+      ], Math.max(2, Math.round(dpi / 72)), Math.max(4, Math.round(dpi / 12)))
+    : null
 
   const whole = measureRegion({ id: '__page__', rect: { x: 0, y: 0, width: masks.width, height: masks.height } }, masks, 0)
   const identified = expectedResults.filter(r => r.identified).length
 
   return {
-    page:      page.page,
+    page:            page.page,
     diffRaster,
-    diffImage: output === 'none' ? null : await encodeImage(diffRaster, { format: output }),
-    expected:  expectedResults,
+    diffImage:       output === 'none' ? null : await encodeImage(diffRaster, { format: output }),
+    sideBySideRaster,
+    sideBySideImage: sideBySideRaster === null || output === 'none' ? null : await encodeImage(sideBySideRaster, { format: output }),
+    expected:        expectedResults,
     unexpected,
     missing,
     truncated,
-    summary:   {
+    summary:         {
       addedInk:      whole.added,
       removedInk:    whole.removed,
       identified,
