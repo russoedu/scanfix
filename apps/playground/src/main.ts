@@ -3,7 +3,7 @@ import { basename, resolve } from 'node:path'
 import type { AlignResult } from '@scanmate/align'
 import { alignPages, alignScan } from '@scanmate/align'
 import type { Region, RegionReport } from '@scanmate/diff'
-import { compareRegions, renderDiff } from '@scanmate/diff'
+import { compareRegions, diffPages, renderDiff } from '@scanmate/diff'
 import { extractPair } from '@scanmate/extract'
 import type { Raster, TransformModel } from '@scanmate/ink'
 import {
@@ -195,7 +195,10 @@ function isPdf (path: string | undefined): path is string {
 
 /**
  * Two PDFs: extract every page pair at the scan's resolution, align them all, and
- * write an overlay per page. `--region` rectangles are checked on every page.
+ * diff each page. `--region` rectangles are read as PDF points from the page's
+ * top-left and checked on every page; the overlay is annotated - green for a
+ * region that was filled in, amber for one that was not, magenta around any
+ * change nobody expected.
  */
 async function runDocument (original: string, scanned: string, options: Options): Promise<void> {
   console.log('')
@@ -206,23 +209,34 @@ async function runDocument (original: string, scanned: string, options: Options)
   const document = await extractPair({ original, scanned }, { output: 'none' })
   const extracted = Date.now()
   const aligned = await alignPages(document.pages, { model: options.model, output: 'none' })
+  const expected = aligned.flatMap(page => options.regions.map(region => ({ page: page.page, id: region.id, ...region.rect })))
+  const diffs = await diffPages(aligned, expected, { output: 'none', annotate: true })
 
   console.log('')
-  console.log('  page  original  scanned   dpi  model       confidence       overlap  rotation  filled')
-  console.log(`  ${'─'.repeat(90)}`)
+  console.log('  page  original  scanned   dpi  model       confidence       rotation  filled        unexpected  missing')
+  console.log(`  ${'─'.repeat(100)}`)
   const summary = []
-  for (const page of aligned) {
+  for (const [i, page] of aligned.entries()) {
     const { aligned: result, metadata } = page
-    const reports = await compareRegions(page.original.raster, result.raster, options.regions)
+    const diff = diffs[i]
     await write(options.out, `page-${page.page}-aligned.png`, result.raster)
-    await write(options.out, `page-${page.page}-diff.png`, await renderDiff(page.original.raster, result.raster))
+    await write(options.out, `page-${page.page}-diff.png`, diff.diffRaster)
 
-    const filled = reports.filter(r => r.filled).map(r => r.id).join(',') || '-'
+    const filled = diff.expected.filter(e => e.identified).map(e => e.id).join(',') || '-'
     const kinds = `${metadata.original.kind.padEnd(8)}  ${metadata.scanned.kind.padEnd(8)}`
     const fit = `${result.diagnostics.selectedModel.padEnd(10)}  ${bar(result.confidence)} ${result.confidence.toFixed(3)}`
-    const geometry = `${result.diagnostics.intersectionOverUnion.toFixed(3)}  ${result.transform.rotationDeg.toFixed(2).padStart(7)}°`
-    console.log(`  ${String(page.page).padStart(4)}  ${kinds}  ${String(page.scanned.dpi).padStart(4)}  ${fit}  ${geometry}  ${filled}`)
-    summary.push({ page: page.page, result: summarise(result), regions: reports })
+    const changes = `${String(diff.unexpected.length).padStart(10)}  ${String(diff.missing.length).padStart(7)}${diff.truncated ? '  (truncated)' : ''}`
+    console.log(
+      `  ${String(page.page).padStart(4)}  ${kinds}  ${String(page.scanned.dpi).padStart(4)}  ${fit}` +
+      `  ${result.transform.rotationDeg.toFixed(2).padStart(7)}°  ${filled.padEnd(12)}${changes}`,
+    )
+    summary.push({
+      page:       page.page,
+      result:     summarise(result),
+      expected:   diff.expected,
+      unexpected: diff.unexpected,
+      missing:    diff.missing,
+    })
   }
 
   const { unpaired, pageCount } = document
@@ -230,7 +244,7 @@ async function runDocument (original: string, scanned: string, options: Options)
   console.log(`  pages     ${pageCount.original} original, ${pageCount.scanned} scanned`)
   if (unpaired.original.length > 0) console.log(`  MISSING   original pages with no scan: ${unpaired.original.join(', ')}`)
   if (unpaired.scanned.length > 0) console.log(`  EXTRA     scanned pages with no original: ${unpaired.scanned.join(', ')}`)
-  console.log(`  elapsed   extract ${extracted - started} ms, align + overlays ${Date.now() - extracted} ms`)
+  console.log(`  elapsed   extract ${extracted - started} ms, align + diff ${Date.now() - extracted} ms`)
   console.log(`  wrote     ${resolve(options.out)}`)
 
   if (options.json) console.log(JSON.stringify({ unpaired, pageCount, pages: summary }, null, 2))

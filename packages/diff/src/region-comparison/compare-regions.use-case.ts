@@ -33,10 +33,10 @@ export async function compareRegions (
   regions: readonly Region[],
   options: RegionOptions = {},
 ): Promise<RegionReport[]> {
-  const { tolerance = 2, threshold = 0.02, ink } = options
-  const masks = await buildMasks(original, aligned, ink, tolerance)
+  const { tolerance = 2, threshold = 0.02, ink, faintInk } = options
+  const masks = await buildMasks(original, aligned, ink, tolerance, faintInk)
 
-  return regions.map(region => report(region, masks, threshold))
+  return regions.map(region => measureRegion(region, masks, threshold))
 }
 
 /** Page-wide added/removed ink, plus per-region detail for any regions supplied. */
@@ -46,19 +46,20 @@ export async function diffDocument (
   regions: readonly Region[] = [],
   options: RegionOptions = {},
 ): Promise<DocumentDiff> {
-  const { tolerance = 2, threshold = 0.02, ink } = options
-  const masks = await buildMasks(original, aligned, ink, tolerance)
+  const { tolerance = 2, threshold = 0.02, ink, faintInk } = options
+  const masks = await buildMasks(original, aligned, ink, tolerance, faintInk)
   const full: Rect = { x: 0, y: 0, width: masks.width, height: masks.height }
-  const whole = report({ id: '__document__', rect: full }, masks, threshold)
+  const whole = measureRegion({ id: '__document__', rect: full }, masks, threshold)
 
   return {
     added:   whole.added,
     removed: whole.removed,
-    regions: regions.map(region => report(region, masks, threshold)),
+    regions: regions.map(region => measureRegion(region, masks, threshold)),
   }
 }
 
-function report (region: Region, masks: Masks, defaultThreshold: number): RegionReport {
+/** One region's added and removed ink, from masks already built. */
+export function measureRegion (region: Region, masks: Masks, defaultThreshold: number): RegionReport {
   const { x, y, width, height } = region.rect
   const left = Math.max(0, Math.floor(x))
   const top = Math.max(0, Math.floor(y))

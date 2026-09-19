@@ -17,6 +17,12 @@ export interface RegionOptions {
   tolerance?: number
   /** Default fraction of new ink that counts as filled. */
   threshold?: number
+  /**
+   * Scan ink fainter than this fraction of the scan's own ink threshold counts
+   * as gone. Anything lighter but still visible has faded, not disappeared -
+   * scanners wash colour out. Default `0.25`.
+   */
+  faintInk?:  number
 }
 
 export interface RegionReport {

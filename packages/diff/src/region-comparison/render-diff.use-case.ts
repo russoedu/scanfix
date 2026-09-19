@@ -1,5 +1,6 @@
 import type { ImageInput, Raster } from '@scanmate/ink'
 import { buildMasks } from './ink-masks.use-case'
+import type { Masks } from './ink-masks.use-case'
 import type { RegionOptions } from './region.model'
 
 /**
@@ -15,8 +16,14 @@ export async function renderDiff (
   aligned: ImageInput,
   options: RegionOptions = {},
 ): Promise<Raster> {
-  const { tolerance = 2, ink } = options
-  const masks = await buildMasks(original, aligned, ink, tolerance)
+  const { tolerance = 2, ink, faintInk } = options
+  const masks = await buildMasks(original, aligned, ink, tolerance, faintInk)
+
+  return paintOverlay(masks)
+}
+
+/** The overlay, from masks already built. Red added, blue lost, grey agreed, white paper. */
+export function paintOverlay (masks: Masks): Raster {
   const { width, height } = masks
   const data = new Uint8ClampedArray(width * height * 4)
 

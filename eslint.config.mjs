@@ -89,7 +89,10 @@ export default [
       // `lib: es2024` the fixed code fails typecheck, so the fixer and the
       // compiler cannot both be satisfied. Revisit when TypeScript ships
       // Array.fromAsync in a finished ES lib.
-      'unicorn/prefer-array-from-async': 'off',
+      'unicorn/prefer-array-from-async':  'off',
+      // Same collision one step on: Iterator#toArray is ES2025, beyond the
+      // es2024 lib, so `[...map.values()]` stays until the lib catches up.
+      'unicorn/prefer-iterator-to-array': 'off',
     },
   },
   {
