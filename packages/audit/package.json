@@ -1,6 +1,27 @@
 {
   "name": "@scanmate/audit",
   "version": "0.0.1",
+  "description": "The final audit of a returned document: full OCR and pixel-by-pixel comparison merged into one verdict, with side-by-side evidence.",
+  "license": "MIT",
+  "author": "Eduardo Russo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/russoedu/scanmate.git",
+    "directory": "packages/audit"
+  },
+  "homepage": "https://github.com/russoedu/scanmate/tree/main/packages/audit#readme",
+  "bugs": {
+    "url": "https://github.com/russoedu/scanmate/issues"
+  },
+  "keywords": [
+    "scan",
+    "audit",
+    "ocr",
+    "diff",
+    "signature-detection",
+    "document",
+    "verification"
+  ],
   "type": "module",
   "main": "./dist/index.esm.js",
   "module": "./dist/index.esm.js",

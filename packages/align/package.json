@@ -1,6 +1,28 @@
 {
   "name": "@scanmate/align",
   "version": "0.0.1",
+  "description": "Put a scanned or photographed page back onto the original it came from: deskew, rescale and register, trying transform models until one is good enough.",
+  "license": "MIT",
+  "author": "Eduardo Russo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/russoedu/scanmate.git",
+    "directory": "packages/align"
+  },
+  "homepage": "https://github.com/russoedu/scanmate/tree/main/packages/align#readme",
+  "bugs": {
+    "url": "https://github.com/russoedu/scanmate/issues"
+  },
+  "keywords": [
+    "scan",
+    "alignment",
+    "image-registration",
+    "deskew",
+    "homography",
+    "orb",
+    "ransac",
+    "document"
+  ],
   "type": "module",
   "main": "./dist/index.esm.js",
   "module": "./dist/index.esm.js",
