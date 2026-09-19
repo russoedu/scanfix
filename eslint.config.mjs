@@ -65,6 +65,17 @@ import mnci from '@mnci/eslint-config'
 // format against their own defaults (semicolons, double quotes), which is the
 // inverse of Standard.
 export default [
+  {
+    name:    'local/ignored-docs-and-generated-files',
+    ignores: [
+      '**/*.md',
+      '**/*.mdx',
+      '**/*.markdown',
+      'documentation/**',
+      'tmp/**',
+      'playground-output/**',
+    ],
+  },
   ...mnci({ workspaceRoot: import.meta.dirname }),
   {
     name:  'local/image-kernels',
