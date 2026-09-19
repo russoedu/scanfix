@@ -20,6 +20,12 @@
     },
     {
       "path": "./packages/extract"
+    },
+    {
+      "path": "./packages/enhance"
+    },
+    {
+      "path": "./packages/merge"
     }
   ],
   "compilerOptions": {}

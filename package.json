@@ -25,7 +25,11 @@
     "diff:qa": "nx run diff:lint && nx run diff:test",
     "diff:build": "nx run diff:build",
     "extract:qa": "nx run extract:lint && nx run extract:test",
-    "extract:build": "nx run extract:build"
+    "extract:build": "nx run extract:build",
+    "enhance:qa": "nx run enhance:lint && nx run enhance:test",
+    "enhance:build": "nx run enhance:build",
+    "merge:qa": "nx run merge:lint && nx run merge:test",
+    "merge:build": "nx run merge:build"
   },
   "private": true,
   "devDependencies": {

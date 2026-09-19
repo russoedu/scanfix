@@ -1,0 +1,98 @@
+import { createGray, createRaster } from '@scanmate/ink'
+import type { Raster } from '@scanmate/ink'
+
+import { estimateContrastPoints } from './contrast-points.policy'
+import { enhanceRaster } from './enhance-raster.use-case'
+
+const MIDDLE = (8 * 16 + 8) * 4
+
+function withPixel (background: [number, number, number, number], ink: [number, number, number]): Raster {
+  const raster = createRaster(16, 16, background)
+  raster.data.set(ink, MIDDLE)
+
+  return raster
+}
+
+/** A page lit from the left: paper runs from 120 to 240 across it, with a dark stroke down the middle. */
+function shadowed (): Raster {
+  const raster = createRaster(200, 100)
+  for (let y = 0; y < 100; y++)
+    for (let x = 0; x < 200; x++) {
+      const paper = 120 + 120 * (x / 199)
+      const v = x >= 98 && x < 102 ? paper * 0.2 : paper
+      raster.data.set([v, v, v], (y * 200 + x) * 4)
+    }
+
+  return raster
+}
+
+describe('enhanceRaster', () => {
+  it('turns darkened paper white and keeps the ink dark', () => {
+    const { raster } = enhanceRaster(withPixel([90, 85, 80, 255], [20, 20, 20]), { whitePoint: 0.92, blackPoint: 0.05 })
+
+    expect([...raster.data.slice(0, 4)]).toEqual([255, 255, 255, 255])
+    expect(raster.data[MIDDLE]).toBeLessThan(100)
+  })
+
+  it('keeps a blue pen blue on yellowed paper in colour mode', () => {
+    const { raster } = enhanceRaster(withPixel([200, 190, 150, 255], [30, 40, 180]), { mode: 'color' })
+
+    expect(raster.data[MIDDLE + 2]).toBeGreaterThan(raster.data[MIDDLE])
+    expect(raster.data[MIDDLE + 2]).toBeGreaterThan(raster.data[MIDDLE + 1])
+  })
+
+  it('returns a monochrome page in grayscale mode', () => {
+    const { raster } = enhanceRaster(withPixel([100, 150, 200, 255], [30, 40, 50]), { mode: 'grayscale' })
+
+    for (let i = 0; i < raster.data.length; i += 4) {
+      expect(raster.data[i]).toBe(raster.data[i + 1])
+      expect(raster.data[i + 1]).toBe(raster.data[i + 2])
+    }
+  })
+
+  it('leaves a clean white page clean', () => {
+    const { raster } = enhanceRaster(withPixel([255, 255, 255, 255], [0, 0, 0]))
+
+    expect(raster.data[0]).toBe(255)
+    expect(raster.data[MIDDLE]).toBe(0)
+  })
+
+  it('flattens a shadow: paper on the dark side comes out as white as on the lit side', () => {
+    const { raster } = enhanceRaster(shadowed(), { mode: 'grayscale' })
+    const at = (x: number): number => raster.data[(50 * 200 + x) * 4]
+
+    expect(at(20)).toBe(255)
+    expect(at(180)).toBe(255)
+    expect(at(100)).toBeLessThan(90)
+  })
+
+  it('reports what it did, with automatic settings resolved', () => {
+    const { applied } = enhanceRaster(shadowed(), { whitePoint: 'auto', blackPoint: 'auto', despeckle: 'auto' })
+
+    expect(applied.whitePoint).toBeGreaterThanOrEqual(0.7)
+    expect(applied.whitePoint).toBeLessThanOrEqual(1.1)
+    expect(applied.blackPoint).toBeGreaterThanOrEqual(0)
+    expect(applied.blackPoint).toBeLessThanOrEqual(0.4)
+    // A smooth synthetic page is not noisy, so auto leaves it alone.
+    expect(applied).toMatchObject({ despeckled: false, mode: 'color' })
+    expect(applied.noiseSigma).toBeLessThan(0.01)
+  })
+
+  it('does not measure noise it has no use for', () => {
+    expect(enhanceRaster(shadowed(), { despeckle: true }).applied).toMatchObject({ despeckled: true, noiseSigma: null })
+  })
+})
+
+describe('estimateContrastPoints', () => {
+  it('puts the white point just below the paper and the black point just above the ink', () => {
+    const gray = createGray(100, 100)
+    const background = createGray(100, 100)
+    background.data.fill(0.8)
+    // 95% paper at the background, 5% ink at a fifth of it.
+    for (let i = 0; i < gray.data.length; i++) gray.data[i] = i % 20 === 0 ? 0.16 : 0.8
+    const points = estimateContrastPoints(gray, background)
+
+    expect(points.blackPoint).toBeCloseTo(0.2, 1)
+    expect(points.whitePoint).toBeCloseTo(1, 1)
+  })
+})

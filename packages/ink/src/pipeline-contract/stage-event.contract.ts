@@ -7,7 +7,7 @@
  * logger, it reports here and lets the host decide what a log line looks like.
  */
 
-export type PipelineStage = 'extract' | 'align' | 'ocr' | 'diff' | 'find'
+export type PipelineStage = 'merge' | 'extract' | 'align' | 'enhance' | 'ocr' | 'diff' | 'find'
 
 export interface StageEvent {
   stage:       PipelineStage

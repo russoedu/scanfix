@@ -158,6 +158,34 @@
         "script": "extract:build",
         "problemMatcher": [],
         "group": "build"
+      },
+      {
+        "label": "enhance: qa",
+        "type": "npm",
+        "script": "enhance:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "enhance: build",
+        "type": "npm",
+        "script": "enhance:build",
+        "problemMatcher": [],
+        "group": "build"
+      },
+      {
+        "label": "merge: qa",
+        "type": "npm",
+        "script": "merge:qa",
+        "problemMatcher": [],
+        "group": "qa"
+      },
+      {
+        "label": "merge: build",
+        "type": "npm",
+        "script": "merge:build",
+        "problemMatcher": [],
+        "group": "build"
       }
     ]
   },
